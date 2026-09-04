@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Medical Shop Management System",
+  title: "Pharmatrix-Medical Shop Management System",
   description: "Medical Shop Management, Inventory, Billing and Doctor Schedule System",
 };
 
