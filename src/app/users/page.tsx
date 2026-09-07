@@ -3,7 +3,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface User {
   _id: string;
@@ -18,6 +19,9 @@ export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const [deleteUser, setDeleteUser] = useState<User | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function loadUsers() {
     try {
@@ -41,6 +45,46 @@ export default function UsersPage() {
   useEffect(() => {
     loadUsers();
   }, []);
+
+  async function handleDelete() {
+    if (!deleteUser) {
+      return;
+    }
+
+    setDeleting(true);
+
+    try {
+      const response = await fetch(
+        `/api/users/${deleteUser._id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(
+          data.message || "Failed to delete user"
+        );
+        return;
+      }
+
+      toast.success("User deleted successfully!", {
+        description: `${deleteUser.name} has been removed.`,
+      });
+
+      setDeleteUser(null);
+
+      await loadUsers();
+    } catch {
+      toast.error(
+        "Something went wrong. Please try again."
+      );
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-gray-100 p-6">
@@ -146,14 +190,27 @@ export default function UsersPage() {
                         ).toLocaleDateString()}
                       </td>
 
-                      <td className="px-6 py-4 text-right">
-                        <Link
-                          href={`/users/${user._id}/edit`}
-                          className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition hover:bg-gray-100"
-                        >
-                          <Pencil size={15} />
-                          Edit
-                        </Link>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-end gap-2">
+                          <Link
+                            href={`/users/${user._id}/edit`}
+                            className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition hover:bg-gray-100"
+                          >
+                            <Pencil size={15} />
+                            Edit
+                          </Link>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDeleteUser(user)
+                            }
+                            className="inline-flex items-center gap-2 rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
+                          >
+                            <Trash2 size={15} />
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -163,6 +220,44 @@ export default function UsersPage() {
           )}
         </div>
       </div>
+
+      {deleteUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="text-xl font-bold">
+              Delete User?
+            </h2>
+
+            <p className="mt-2 text-sm leading-6 text-gray-600">
+              Are you sure you want to delete{" "}
+              <span className="font-semibold text-gray-900">
+                {deleteUser.name}
+              </span>
+              ? This action cannot be undone.
+            </p>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteUser(null)}
+                disabled={deleting}
+                className="rounded-lg border px-5 py-2.5 text-sm font-medium transition hover:bg-gray-100 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="rounded-lg bg-red-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Delete User"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

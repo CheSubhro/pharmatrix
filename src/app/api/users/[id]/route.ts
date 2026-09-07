@@ -180,3 +180,60 @@ export async function PUT(
     );
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const auth = await requirePermission(
+      PERMISSIONS.USER_MANAGE
+    );
+
+    if (!auth.authorized) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            auth.status === 401
+              ? "Authentication required"
+              : "You do not have permission to manage users",
+        },
+        { status: auth.status }
+      );
+    }
+
+    const { id } = await params;
+
+    await connectDB();
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "User not found",
+        },
+        { status: 404 }
+      );
+    }
+
+    await User.findByIdAndDelete(id);
+
+    return NextResponse.json({
+      success: true,
+      message: "User deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete User Error:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Failed to delete user",
+      },
+      { status: 500 }
+    );
+  }
+}
