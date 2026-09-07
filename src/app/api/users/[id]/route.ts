@@ -5,6 +5,63 @@ import User from "@/models/User";
 import { requirePermission } from "@/lib/authorization";
 import { PERMISSIONS } from "@/constants/permissions";
 
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const auth = await requirePermission(
+      PERMISSIONS.USER_VIEW
+    );
+
+    if (!auth.authorized) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            auth.status === 401
+              ? "Authentication required"
+              : "You do not have permission to view users",
+        },
+        { status: auth.status }
+      );
+    }
+
+    const { id } = await params;
+
+    await connectDB();
+
+    const user = await User.findById(id)
+      .select("-password")
+      .lean();
+
+    if (!user) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "User not found",
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      user,
+    });
+  } catch (error) {
+    console.error("Get User Error:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Failed to fetch user",
+      },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
