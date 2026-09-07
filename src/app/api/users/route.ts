@@ -130,3 +130,46 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export async function GET() {
+  try {
+    const auth = await requirePermission(
+      PERMISSIONS.USER_VIEW
+    );
+
+    if (!auth.authorized) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            auth.status === 401
+              ? "Authentication required"
+              : "You do not have permission to view users",
+        },
+        { status: auth.status }
+      );
+    }
+
+    await connectDB();
+
+    const users = await User.find({})
+      .select("-password")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return NextResponse.json({
+      success: true,
+      users,
+    });
+  } catch (error) {
+    console.error("Get Users Error:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Failed to fetch users",
+      },
+      { status: 500 }
+    );
+  }
+}
