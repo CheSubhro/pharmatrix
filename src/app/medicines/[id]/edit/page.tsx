@@ -5,6 +5,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
 
 type MedicineFormData = {
   name: string;
@@ -82,11 +83,13 @@ export default function EditMedicinePage() {
       } catch (error) {
         console.error("Fetch medicine error:", error);
 
-        setError(
+        const message =
           error instanceof Error
             ? error.message
-            : "Failed to fetch medicine"
-        );
+            : "Failed to fetch medicine";
+
+        setError(message);
+        toast.error(message);
       } finally {
         setLoading(false);
       }
@@ -112,6 +115,12 @@ export default function EditMedicinePage() {
         setCategories(data.categories || []);
       } catch (error) {
         console.error("Fetch categories error:", error);
+
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch categories"
+        );
       } finally {
         setCategoriesLoading(false);
       }
@@ -137,37 +146,37 @@ export default function EditMedicinePage() {
     setError("");
 
     if (!formData.name.trim()) {
-      setError("Medicine name is required.");
+      toast.error("Medicine name is required.");
       return;
     }
 
     if (formData.purchasePrice === "") {
-      setError("Purchase price is required.");
+      toast.error("Purchase price is required.");
       return;
     }
 
     if (formData.sellingPrice === "") {
-      setError("Selling price is required.");
+      toast.error("Selling price is required.");
       return;
     }
 
     if (Number(formData.purchasePrice) < 0) {
-      setError("Purchase price cannot be negative.");
+      toast.error("Purchase price cannot be negative.");
       return;
     }
 
     if (Number(formData.sellingPrice) < 0) {
-      setError("Selling price cannot be negative.");
+      toast.error("Selling price cannot be negative.");
       return;
     }
 
     if (Number(formData.minimumStock) < 0) {
-      setError("Minimum stock cannot be negative.");
+      toast.error("Minimum stock cannot be negative.");
       return;
     }
 
     if (Number(formData.taxRate) < 0) {
-      setError("Tax rate cannot be negative.");
+      toast.error("Tax rate cannot be negative.");
       return;
     }
 
@@ -202,16 +211,19 @@ export default function EditMedicinePage() {
         );
       }
 
+      toast.success("Medicine updated successfully");
+
       router.push("/medicines");
       router.refresh();
     } catch (error) {
       console.error("Update medicine error:", error);
 
-      setError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Failed to update medicine"
-      );
+          : "Failed to update medicine";
+
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -253,7 +265,6 @@ export default function EditMedicinePage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="mx-auto max-w-5xl">
-
         {/* Header */}
         <div className="mb-6">
           <Link
@@ -291,7 +302,6 @@ export default function EditMedicinePage() {
             </h2>
 
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-
               {/* Medicine Name */}
               <div className="md:col-span-2">
                 <label
@@ -458,7 +468,6 @@ export default function EditMedicinePage() {
             </h2>
 
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-
               {/* Rack */}
               <div>
                 <label
@@ -512,7 +521,6 @@ export default function EditMedicinePage() {
             </h2>
 
             <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-
               {/* Purchase Price */}
               <div>
                 <label
