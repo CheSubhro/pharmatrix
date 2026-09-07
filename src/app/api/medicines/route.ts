@@ -1,6 +1,9 @@
 
+
 import { NextRequest, NextResponse } from "next/server";
+
 import { connectDB } from "@/lib/mongodb";
+
 import Medicine from "@/models/Medicine";
 
 // GET /api/medicines
@@ -49,6 +52,7 @@ export async function POST(request: NextRequest) {
       strength,
       dosageForm,
       rack,
+      shelf,
       minimumStock,
       sellingPrice,
       purchasePrice,
@@ -102,6 +106,7 @@ export async function POST(request: NextRequest) {
       strength,
       dosageForm,
       rack,
+      shelf,
       minimumStock:
         minimumStock !== undefined ? Number(minimumStock) : 10,
       sellingPrice: Number(sellingPrice),
@@ -130,3 +135,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
