@@ -1,9 +1,14 @@
 
+
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Pencil, Trash2 } from "lucide-react";
+import {
+  KeyRound,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 interface User {
@@ -20,7 +25,9 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [deleteUser, setDeleteUser] = useState<User | null>(null);
+  const [deleteUser, setDeleteUser] = useState<User | null>(
+    null
+  );
   const [deleting, setDeleting] = useState(false);
 
   async function loadUsers() {
@@ -200,6 +207,14 @@ export default function UsersPage() {
                             Edit
                           </Link>
 
+                          <Link
+                            href={`/users/${user._id}/password`}
+                            className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition hover:bg-gray-100"
+                          >
+                            <KeyRound size={15} />
+                            Change Password
+                          </Link>
+
                           <button
                             type="button"
                             onClick={() =>
@@ -252,7 +267,9 @@ export default function UsersPage() {
                 disabled={deleting}
                 className="rounded-lg bg-red-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {deleting ? "Deleting..." : "Delete User"}
+                {deleting
+                  ? "Deleting..."
+                  : "Delete User"}
               </button>
             </div>
           </div>
