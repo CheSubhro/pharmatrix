@@ -3,6 +3,8 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
+import { toast } from "sonner";
 
 const roles = [
   {
@@ -32,9 +34,8 @@ export default function CreateUserPage() {
   const [role, setRole] = useState("PHARMACIST");
   const [isActive, setIsActive] = useState(true);
 
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
@@ -42,8 +43,6 @@ export default function CreateUserPage() {
     event.preventDefault();
 
     setLoading(true);
-    setMessage("");
-    setError("");
 
     try {
       const response = await fetch("/api/users", {
@@ -63,11 +62,15 @@ export default function CreateUserPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.message || "Failed to create user");
+        toast.error(
+          data.message || "Failed to create user"
+        );
         return;
       }
 
-      setMessage("User created successfully.");
+      toast.success("User created successfully!", {
+        description: `${name} has been added to Pharmatrix.`,
+      });
 
       setName("");
       setEmail("");
@@ -77,9 +80,11 @@ export default function CreateUserPage() {
 
       setTimeout(() => {
         router.push("/users");
-      }, 1000);
+      }, 1200);
     } catch {
-      setError("Something went wrong. Please try again.");
+      toast.error(
+        "Something went wrong. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -87,75 +92,120 @@ export default function CreateUserPage() {
 
   return (
     <main className="min-h-screen bg-gray-100 p-6">
-      <div className="mx-auto max-w-2xl">
-        <div className="rounded-xl bg-white p-8 shadow">
-          <h1 className="text-2xl font-bold">
-            Create User
-          </h1>
+      <div className="mx-auto max-w-5xl">
+        <div className="rounded-2xl bg-white p-8 shadow-sm">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold tracking-tight">
+              Create User
+            </h1>
 
-          <p className="mt-1 text-sm text-gray-500">
-            Add a new staff member to Pharmatrix.
-          </p>
+            <p className="mt-2 text-sm text-gray-500">
+              Add a new staff member to Pharmatrix.
+            </p>
+          </div>
 
           <form
             onSubmit={handleSubmit}
-            className="mt-6 space-y-5"
+            className="grid grid-cols-1 gap-6 md:grid-cols-2"
           >
+            {/* Name */}
             <div>
-              <label className="mb-1 block text-sm font-medium">
+              <label className="mb-2 block text-sm font-medium">
                 Name
               </label>
 
               <input
                 type="text"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) =>
+                  setName(e.target.value)
+                }
                 placeholder="Enter full name"
-                className="w-full rounded-md border px-3 py-2"
+                className="h-11 w-full rounded-lg border px-3 outline-none transition focus:border-black focus:ring-2 focus:ring-gray-200"
                 required
               />
             </div>
 
+            {/* Email */}
             <div>
-              <label className="mb-1 block text-sm font-medium">
+              <label className="mb-2 block text-sm font-medium">
                 Email
               </label>
 
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) =>
+                  setEmail(e.target.value)
+                }
                 placeholder="Enter email address"
-                className="w-full rounded-md border px-3 py-2"
+                className="h-11 w-full rounded-lg border px-3 outline-none transition focus:border-black focus:ring-2 focus:ring-gray-200"
                 required
               />
             </div>
 
+            {/* Password */}
             <div>
-              <label className="mb-1 block text-sm font-medium">
+              <label className="mb-2 block text-sm font-medium">
                 Password
               </label>
 
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Minimum 6 characters"
-                className="w-full rounded-md border px-3 py-2"
-                minLength={6}
-                required
-              />
+              <div className="relative">
+                <input
+                  type={
+                    showPassword
+                      ? "text"
+                      : "password"
+                  }
+                  value={password}
+                  onChange={(e) =>
+                    setPassword(e.target.value)
+                  }
+                  placeholder="Minimum 6 characters"
+                  minLength={6}
+                  className="h-11 w-full rounded-lg border px-3 pr-11 outline-none transition focus:border-black focus:ring-2 focus:ring-gray-200"
+                  required
+                />
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowPassword(
+                      !showPassword
+                    )
+                  }
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
+                  aria-label={
+                    showPassword
+                      ? "Hide password"
+                      : "Show password"
+                  }
+                >
+                  {showPassword ? (
+                    <EyeOff size={19} />
+                  ) : (
+                    <Eye size={19} />
+                  )}
+                </button>
+              </div>
+
+              <p className="mt-1.5 text-xs text-gray-500">
+                Password must be at least 6 characters.
+              </p>
             </div>
 
+            {/* Role */}
             <div>
-              <label className="mb-1 block text-sm font-medium">
+              <label className="mb-2 block text-sm font-medium">
                 Role
               </label>
 
               <select
                 value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="w-full rounded-md border px-3 py-2"
+                onChange={(e) =>
+                  setRole(e.target.value)
+                }
+                className="h-11 w-full rounded-lg border bg-white px-3 outline-none transition focus:border-black focus:ring-2 focus:ring-gray-200"
               >
                 {roles.map((item) => (
                   <option
@@ -168,46 +218,48 @@ export default function CreateUserPage() {
               </select>
             </div>
 
-            <label className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={isActive}
-                onChange={(e) =>
-                  setIsActive(e.target.checked)
-                }
-                className="h-4 w-4"
-              />
+            {/* Active User */}
+            <div className="flex items-center md:col-span-2">
+              <label className="flex cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={isActive}
+                  onChange={(e) =>
+                    setIsActive(e.target.checked)
+                  }
+                  className="h-4 w-4 rounded"
+                />
 
-              <span className="text-sm font-medium">
-                Active User
-              </span>
-            </label>
+                <div>
+                  <p className="text-sm font-medium">
+                    Active User
+                  </p>
 
-            {error && (
-              <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
-                {error}
-              </div>
-            )}
+                  <p className="text-xs text-gray-500">
+                    User will be able to login immediately.
+                  </p>
+                </div>
+              </label>
+            </div>
 
-            {message && (
-              <div className="rounded-md bg-green-50 p-3 text-sm text-green-600">
-                {message}
-              </div>
-            )}
-
-            <div className="flex gap-3">
+            {/* Buttons */}
+            <div className="flex gap-3 border-t pt-6 md:col-span-2">
               <button
                 type="submit"
                 disabled={loading}
-                className="rounded-md bg-black px-5 py-2 text-white disabled:opacity-50"
+                className="rounded-lg bg-black px-6 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {loading ? "Creating..." : "Create User"}
+                {loading
+                  ? "Creating..."
+                  : "Create User"}
               </button>
 
               <button
                 type="button"
-                onClick={() => router.push("/dashboard")}
-                className="rounded-md border px-5 py-2 hover:bg-gray-100"
+                onClick={() =>
+                  router.push("/users")
+                }
+                className="rounded-lg border px-6 py-2.5 text-sm font-medium transition hover:bg-gray-100"
               >
                 Cancel
               </button>
@@ -218,3 +270,4 @@ export default function CreateUserPage() {
     </main>
   );
 }
+
