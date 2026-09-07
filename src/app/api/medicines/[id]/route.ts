@@ -1,7 +1,11 @@
 
+
 import { NextRequest, NextResponse } from "next/server";
+
 import mongoose from "mongoose";
+
 import { connectDB } from "@/lib/mongodb";
+
 import Medicine from "@/models/Medicine";
 
 // GET /api/medicines/[id]
@@ -91,6 +95,7 @@ export async function PUT(
       strength,
       dosageForm,
       rack,
+      shelf,
       minimumStock,
       sellingPrice,
       purchasePrice,
@@ -148,6 +153,7 @@ export async function PUT(
         strength,
         dosageForm,
         rack,
+        shelf,
         minimumStock:
           minimumStock !== undefined ? Number(minimumStock) : 10,
         sellingPrice: Number(sellingPrice),
@@ -254,3 +260,4 @@ export async function DELETE(
     );
   }
 }
+
