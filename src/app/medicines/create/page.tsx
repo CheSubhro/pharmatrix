@@ -3,13 +3,23 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+
 import Link from "next/link";
+
 import { useRouter } from "next/navigation";
+
 import { toast } from "sonner";
 
 interface Category {
   _id: string;
   name: string;
+}
+
+interface Rack {
+  _id: string;
+  name: string;
+  code: string;
+  shelves: string[];
 }
 
 export default function CreateMedicinePage() {
@@ -23,6 +33,7 @@ export default function CreateMedicinePage() {
     strength: "",
     dosageForm: "",
     rack: "",
+    shelf: "",
     minimumStock: "10",
     purchasePrice: "",
     sellingPrice: "",
@@ -30,13 +41,17 @@ export default function CreateMedicinePage() {
   });
 
   const [categories, setCategories] = useState<Category[]>([]);
+  const [racks, setRacks] = useState<Rack[]>([]);
+
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [racksLoading, setRacksLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         const response = await fetch("/api/categories");
+
         const data = await response.json();
 
         if (!response.ok || !data.success) {
@@ -62,10 +77,56 @@ export default function CreateMedicinePage() {
     fetchCategories();
   }, []);
 
+  useEffect(() => {
+    const fetchRacks = async () => {
+      try {
+        const response = await fetch("/api/racks");
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(
+            data.message || "Failed to fetch racks"
+          );
+        }
+
+        setRacks(data.racks || []);
+      } catch (error) {
+        console.error("Fetch racks error:", error);
+
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch racks"
+        );
+      } finally {
+        setRacksLoading(false);
+      }
+    };
+
+    fetchRacks();
+  }, []);
+
+  const selectedRack = racks.find(
+    (rack) => rack._id === formData.rack
+  );
+
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement
+    >
   ) => {
     const { name, value } = e.target;
+
+    if (name === "rack") {
+      setFormData((prev) => ({
+        ...prev,
+        rack: value,
+        shelf: "",
+      }));
+
+      return;
+    }
 
     setFormData((prev) => ({
       ...prev,
@@ -73,7 +134,9 @@ export default function CreateMedicinePage() {
     }));
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (
+    e: FormEvent<HTMLFormElement>
+  ) => {
     e.preventDefault();
 
     if (!formData.name.trim()) {
@@ -127,6 +190,7 @@ export default function CreateMedicinePage() {
           strength: formData.strength.trim(),
           dosageForm: formData.dosageForm.trim(),
           rack: formData.rack.trim(),
+          shelf: formData.shelf.trim(),
           minimumStock: Number(formData.minimumStock),
           purchasePrice: Number(formData.purchasePrice),
           sellingPrice: Number(formData.sellingPrice),
@@ -324,7 +388,9 @@ export default function CreateMedicinePage() {
                   onChange={handleChange}
                   className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-black focus:ring-2 focus:ring-gray-200"
                 >
-                  <option value="">Select dosage form</option>
+                  <option value="">
+                    Select dosage form
+                  </option>
                   <option value="Tablet">Tablet</option>
                   <option value="Capsule">Capsule</option>
                   <option value="Syrup">Syrup</option>
@@ -354,18 +420,68 @@ export default function CreateMedicinePage() {
                   htmlFor="rack"
                   className="mb-1.5 block text-sm font-medium text-gray-700"
                 >
-                  Rack / Shelf
+                  Rack
                 </label>
 
-                <input
+                <select
                   id="rack"
                   name="rack"
-                  type="text"
                   value={formData.rack}
                   onChange={handleChange}
-                  placeholder="e.g. Rack A1"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm outline-none transition focus:border-black focus:ring-2 focus:ring-gray-200"
-                />
+                  disabled={racksLoading}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-black focus:ring-2 focus:ring-gray-200 disabled:cursor-not-allowed disabled:bg-gray-100"
+                >
+                  <option value="">
+                    {racksLoading
+                      ? "Loading racks..."
+                      : "Select rack"}
+                  </option>
+
+                  {racks.map((rack) => (
+                    <option
+                      key={rack._id}
+                      value={rack._id}
+                    >
+                      {rack.name} ({rack.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Shelf */}
+              <div>
+                <label
+                  htmlFor="shelf"
+                  className="mb-1.5 block text-sm font-medium text-gray-700"
+                >
+                  Shelf
+                </label>
+
+                <select
+                  id="shelf"
+                  name="shelf"
+                  value={formData.shelf}
+                  onChange={handleChange}
+                  disabled={
+                    !selectedRack ||
+                    selectedRack.shelves.length === 0
+                  }
+                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-black focus:ring-2 focus:ring-gray-200 disabled:cursor-not-allowed disabled:bg-gray-100"
+                >
+                  <option value="">
+                    {!selectedRack
+                      ? "Select rack first"
+                      : selectedRack.shelves.length === 0
+                        ? "No shelves available"
+                        : "Select shelf"}
+                  </option>
+
+                  {selectedRack?.shelves.map((shelf) => (
+                    <option key={shelf} value={shelf}>
+                      {shelf}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Minimum Stock */}
