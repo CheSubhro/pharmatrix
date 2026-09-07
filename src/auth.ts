@@ -25,11 +25,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const user = await User.findOne({ email });
 
-        if (!user) {
-          return null;
-        }
-
-        if (!user.isActive) {
+        if (!user || !user.isActive) {
           return null;
         }
 
@@ -57,23 +53,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
 
   callbacks: {
-  async jwt({ token, user }) {
-    if (user) {
-      token.role = user.role;
-    }
+    async jwt({ token, user }) {
+      if (user) {
+        token.role = user.role;
+      }
 
-    return token;
+      return token;
+    },
+
+    async session({ session, token }) {
+      if (session.user && token.sub) {
+        session.user.id = token.sub;
+        session.user.role = token.role!;
+      }
+
+      return session;
+    },
   },
-
-  async session({ session, token }) {
-    if (session.user && token.sub) {
-      session.user.id = token.sub;
-      session.user.role = token.role!;
-    }
-
-    return session;
-  },
-},
 
   pages: {
     signIn: "/login",
