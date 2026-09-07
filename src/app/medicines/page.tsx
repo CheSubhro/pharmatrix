@@ -1,9 +1,10 @@
 
-
 "use client";
 
 import { useEffect, useState } from "react";
+
 import Link from "next/link";
+
 import { toast } from "sonner";
 
 interface Medicine {
@@ -15,6 +16,7 @@ interface Medicine {
   strength?: string;
   dosageForm?: string;
   rack?: string;
+  shelf?: string;
   minimumStock: number;
   sellingPrice: number;
   purchasePrice: number;
@@ -22,10 +24,19 @@ interface Medicine {
   isActive: boolean;
 }
 
+interface Rack {
+  _id: string;
+  name: string;
+  code: string;
+  shelves: string[];
+}
+
 export default function MedicinesPage() {
   const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [racks, setRacks] = useState<Rack[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [racksLoading, setRacksLoading] = useState(true);
   const [error, setError] = useState("");
 
   const fetchMedicines = async () => {
@@ -37,7 +48,9 @@ export default function MedicinesPage() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to fetch medicines");
+        throw new Error(
+          data.message || "Failed to fetch medicines"
+        );
       }
 
       setMedicines(data.medicines || []);
@@ -49,15 +62,65 @@ export default function MedicinesPage() {
     }
   };
 
+  const fetchRacks = async () => {
+    try {
+      setRacksLoading(true);
+
+      const response = await fetch("/api/racks");
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.message || "Failed to fetch racks"
+        );
+      }
+
+      setRacks(data.racks || []);
+    } catch (error) {
+      console.error("Fetch racks error:", error);
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to fetch racks"
+      );
+    } finally {
+      setRacksLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchMedicines();
+    fetchRacks();
   }, []);
 
-  const deleteMedicine = async (id: string, name: string) => {
+  const getRackDisplay = (rackId?: string) => {
+    if (!rackId) {
+      return "-";
+    }
+
+    const rack = racks.find(
+      (item) => item._id === rackId
+    );
+
+    if (!rack) {
+      return rackId;
+    }
+
+    return `${rack.name} (${rack.code})`;
+  };
+
+  const deleteMedicine = async (
+    id: string,
+    name: string
+  ) => {
     try {
-      const response = await fetch(`/api/medicines/${id}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/medicines/${id}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       const data = await response.json();
 
@@ -68,12 +131,19 @@ export default function MedicinesPage() {
       }
 
       setMedicines((prev) =>
-        prev.filter((medicine) => medicine._id !== id)
+        prev.filter(
+          (medicine) => medicine._id !== id
+        )
       );
 
-      toast.success("Medicine deleted successfully");
+      toast.success(
+        "Medicine deleted successfully"
+      );
     } catch (error) {
-      console.error("Delete medicine error:", error);
+      console.error(
+        "Delete medicine error:",
+        error
+      );
 
       toast.error(
         error instanceof Error
@@ -83,13 +153,18 @@ export default function MedicinesPage() {
     }
   };
 
-  const handleDelete = (id: string, name: string) => {
+  const handleDelete = (
+    id: string,
+    name: string
+  ) => {
     toast.warning(`Delete "${name}"?`, {
-      description: "This medicine will be removed from the active medicine list.",
+      description:
+        "This medicine will be removed from the active medicine list.",
       duration: 5000,
       action: {
         label: "Delete",
-        onClick: () => deleteMedicine(id, name),
+        onClick: () =>
+          deleteMedicine(id, name),
       },
       cancel: {
         label: "Cancel",
@@ -98,17 +173,35 @@ export default function MedicinesPage() {
     });
   };
 
-  const filteredMedicines = medicines.filter((medicine) => {
-    const searchText = search.toLowerCase();
+  const filteredMedicines =
+    medicines.filter((medicine) => {
+      const searchText =
+        search.toLowerCase();
 
-    return (
-      medicine.name?.toLowerCase().includes(searchText) ||
-      medicine.genericName?.toLowerCase().includes(searchText) ||
-      medicine.company?.toLowerCase().includes(searchText) ||
-      medicine.category?.toLowerCase().includes(searchText) ||
-      medicine.rack?.toLowerCase().includes(searchText)
-    );
-  });
+      const rackDisplay = getRackDisplay(
+        medicine.rack
+      ).toLowerCase();
+
+      const shelfDisplay =
+        medicine.shelf?.toLowerCase() || "";
+
+      return (
+        medicine.name
+          ?.toLowerCase()
+          .includes(searchText) ||
+        medicine.genericName
+          ?.toLowerCase()
+          .includes(searchText) ||
+        medicine.company
+          ?.toLowerCase()
+          .includes(searchText) ||
+        medicine.category
+          ?.toLowerCase()
+          .includes(searchText) ||
+        rackDisplay.includes(searchText) ||
+        shelfDisplay.includes(searchText)
+      );
+    });
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -121,7 +214,8 @@ export default function MedicinesPage() {
             </h1>
 
             <p className="mt-1 text-sm text-gray-500">
-              Manage your pharmacy medicines and inventory information.
+              Manage your pharmacy medicines and
+              inventory information.
             </p>
           </div>
 
@@ -137,9 +231,11 @@ export default function MedicinesPage() {
         <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
           <input
             type="text"
-            placeholder="Search by medicine name, generic name, company, category or rack..."
+            placeholder="Search by medicine name, generic name, company, category, rack or shelf..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) =>
+              setSearch(e.target.value)
+            }
             className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm outline-none transition focus:border-black focus:ring-2 focus:ring-gray-200"
           />
         </div>
@@ -218,6 +314,10 @@ export default function MedicinesPage() {
                           Rack
                         </th>
 
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                          Shelf
+                        </th>
+
                         <th className="px-4 py-3 text-right font-semibold text-gray-700">
                           Purchase
                         </th>
@@ -233,80 +333,107 @@ export default function MedicinesPage() {
                     </thead>
 
                     <tbody className="divide-y divide-gray-100">
-                      {filteredMedicines.map((medicine) => (
-                        <tr
-                          key={medicine._id}
-                          className="transition hover:bg-gray-50"
-                        >
-                          <td className="px-4 py-4">
-                            <div>
-                              <p className="font-semibold text-gray-900">
-                                {medicine.name}
-                              </p>
-
-                              {medicine.genericName && (
-                                <p className="mt-0.5 text-xs text-gray-500">
-                                  {medicine.genericName}
+                      {filteredMedicines.map(
+                        (medicine) => (
+                          <tr
+                            key={medicine._id}
+                            className="transition hover:bg-gray-50"
+                          >
+                            <td className="px-4 py-4">
+                              <div>
+                                <p className="font-semibold text-gray-900">
+                                  {medicine.name}
                                 </p>
+
+                                {medicine.genericName && (
+                                  <p className="mt-0.5 text-xs text-gray-500">
+                                    {
+                                      medicine.genericName
+                                    }
+                                  </p>
+                                )}
+
+                                {medicine.dosageForm && (
+                                  <p className="mt-0.5 text-xs text-gray-400">
+                                    {
+                                      medicine.dosageForm
+                                    }
+                                  </p>
+                                )}
+                              </div>
+                            </td>
+
+                            <td className="px-4 py-4 text-gray-600">
+                              {medicine.company ||
+                                "-"}
+                            </td>
+
+                            <td className="px-4 py-4 text-gray-600">
+                              {medicine.category ||
+                                "-"}
+                            </td>
+
+                            <td className="px-4 py-4 text-gray-600">
+                              {medicine.strength ||
+                                "-"}
+                            </td>
+
+                            <td className="px-4 py-4 text-gray-600">
+                              {racksLoading ? (
+                                <span className="text-gray-400">
+                                  Loading...
+                                </span>
+                              ) : (
+                                getRackDisplay(
+                                  medicine.rack
+                                )
                               )}
+                            </td>
 
-                              {medicine.dosageForm && (
-                                <p className="mt-0.5 text-xs text-gray-400">
-                                  {medicine.dosageForm}
-                                </p>
+                            <td className="px-4 py-4 text-gray-600">
+                              {medicine.shelf || "-"}
+                            </td>
+
+                            <td className="px-4 py-4 text-right text-gray-700">
+                              ₹
+                              {medicine.purchasePrice.toFixed(
+                                2
                               )}
-                            </div>
-                          </td>
+                            </td>
 
-                          <td className="px-4 py-4 text-gray-600">
-                            {medicine.company || "-"}
-                          </td>
+                            <td className="px-4 py-4 text-right font-medium text-gray-900">
+                              ₹
+                              {medicine.sellingPrice.toFixed(
+                                2
+                              )}
+                            </td>
 
-                          <td className="px-4 py-4 text-gray-600">
-                            {medicine.category || "-"}
-                          </td>
+                            <td className="px-4 py-4">
+                              <div className="flex items-center justify-center gap-2">
+                                <Link
+                                  href={`/medicines/${medicine._id}/edit`}
+                                  className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+                                >
+                                  Edit
+                                </Link>
 
-                          <td className="px-4 py-4 text-gray-600">
-                            {medicine.strength || "-"}
-                          </td>
-
-                          <td className="px-4 py-4 text-gray-600">
-                            {medicine.rack || "-"}
-                          </td>
-
-                          <td className="px-4 py-4 text-right text-gray-700">
-                            ₹{medicine.purchasePrice.toFixed(2)}
-                          </td>
-
-                          <td className="px-4 py-4 text-right font-medium text-gray-900">
-                            ₹{medicine.sellingPrice.toFixed(2)}
-                          </td>
-
-                          <td className="px-4 py-4">
-                            <div className="flex items-center justify-center gap-2">
-                              <Link
-                                href={`/medicines/${medicine._id}/edit`}
-                                className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
-                              >
-                                Edit
-                              </Link>
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleDelete(
-                                    medicine._id,
-                                    medicine.name
-                                  )
-                                }
-                                className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-red-700"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleDelete(
+                                      medicine._id,
+                                      medicine.name
+                                    )
+                                  }
+                                  className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-red-700"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      )}
                     </tbody>
                   </table>
                 </div>
