@@ -1,16 +1,23 @@
 
-import NextAuth from "next-auth";
-import Credentials from "next-auth/providers/credentials";
 import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
 import { verifyPassword } from "@/services/auth.service";
+import CredentialsProvider from "next-auth/providers/credentials";
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+export const authOptions = {
   providers: [
-    Credentials({
+    CredentialsProvider({
+      name: "Credentials",
+
       credentials: {
-        email: {},
-        password: {},
+        email: {
+          label: "Email",
+          type: "email",
+        },
+        password: {
+          label: "Password",
+          type: "password",
+        },
       },
 
       async authorize(credentials) {
@@ -49,11 +56,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
 
   session: {
-    strategy: "jwt",
+    strategy: "jwt" as const,
   },
 
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user }: any) {
       if (user) {
         token.role = user.role;
       }
@@ -61,10 +68,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return token;
     },
 
-    async session({ session, token }) {
-      if (session.user && token.sub) {
+    async session({ session, token }: any) {
+      if (session.user) {
         session.user.id = token.sub;
-        session.user.role = token.role!;
+        session.user.role = token.role;
       }
 
       return session;
@@ -74,4 +81,4 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   pages: {
     signIn: "/login",
   },
-});
+};

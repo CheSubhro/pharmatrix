@@ -1,7 +1,5 @@
 
 import { DefaultSession } from "next-auth";
-import "next-auth";
-import "next-auth/jwt";
 
 type UserRole =
   | "SUPER_ADMIN"
