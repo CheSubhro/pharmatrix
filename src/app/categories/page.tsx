@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 
 interface Category {
   _id: string;
@@ -43,13 +44,7 @@ export default function CategoriesPage() {
     fetchCategories();
   }, []);
 
-  const handleDelete = async (id: string, name: string) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete "${name}"?`
-    );
-
-    if (!confirmed) return;
-
+  const deleteCategory = async (id: string) => {
     try {
       const response = await fetch(`/api/categories/${id}`, {
         method: "DELETE",
@@ -64,10 +59,27 @@ export default function CategoriesPage() {
       setCategories((prev) =>
         prev.filter((category) => category._id !== id)
       );
+
+      toast.success("Category deleted successfully");
     } catch (error) {
       console.error("Delete category error:", error);
-      alert("Failed to delete category");
+      toast.error("Failed to delete category");
     }
+  };
+
+  const handleDelete = (id: string, name: string) => {
+    toast.warning(`Delete "${name}"?`, {
+      description: "This category will be deactivated.",
+      duration: 5000,
+      action: {
+        label: "Delete",
+        onClick: () => deleteCategory(id),
+      },
+      cancel: {
+        label: "Cancel",
+        onClick: () => {},
+      },
+    });
   };
 
   const filteredCategories = categories.filter((category) => {
@@ -87,6 +99,7 @@ export default function CategoriesPage() {
             <h1 className="text-2xl font-bold text-gray-900">
               Categories
             </h1>
+
             <p className="mt-1 text-sm text-gray-500">
               Manage medicine categories for your pharmacy.
             </p>
@@ -207,7 +220,7 @@ export default function CategoriesPage() {
                                     category.name
                                   )
                                 }
-                                className="rounded-md bg-black px-3 py-1.5 text-xs font-medium text-white transition hover:bg-gray-800"
+                                className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-red-700"
                               >
                                 Delete
                               </button>
