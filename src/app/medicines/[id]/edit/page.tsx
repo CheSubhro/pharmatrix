@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
@@ -19,10 +20,14 @@ type MedicineFormData = {
   taxRate: string;
 };
 
+type Category = {
+  _id: string;
+  name: string;
+};
+
 export default function EditMedicinePage() {
   const router = useRouter();
   const params = useParams();
-
   const id = params.id as string;
 
   const [formData, setFormData] = useState<MedicineFormData>({
@@ -39,6 +44,9 @@ export default function EditMedicinePage() {
     taxRate: "0",
   });
 
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -50,7 +58,6 @@ export default function EditMedicinePage() {
         setError("");
 
         const response = await fetch(`/api/medicines/${id}`);
-
         const data = await response.json();
 
         if (!response.ok || !data.success) {
@@ -89,6 +96,29 @@ export default function EditMedicinePage() {
       fetchMedicine();
     }
   }, [id]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch("/api/categories");
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(
+            data.message || "Failed to fetch categories"
+          );
+        }
+
+        setCategories(data.categories || []);
+      } catch (error) {
+        console.error("Fetch categories error:", error);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -167,7 +197,9 @@ export default function EditMedicinePage() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to update medicine");
+        throw new Error(
+          data.message || "Failed to update medicine"
+        );
       }
 
       router.push("/medicines");
@@ -245,7 +277,6 @@ export default function EditMedicinePage() {
           onSubmit={handleSubmit}
           className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
         >
-
           {/* Error */}
           {error && (
             <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -332,15 +363,39 @@ export default function EditMedicinePage() {
                   Category
                 </label>
 
-                <input
+                <select
                   id="category"
                   name="category"
-                  type="text"
                   value={formData.category}
                   onChange={handleChange}
-                  placeholder="e.g. Antibiotic"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm outline-none transition focus:border-black focus:ring-2 focus:ring-gray-200"
-                />
+                  disabled={categoriesLoading}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-black focus:ring-2 focus:ring-gray-200 disabled:cursor-not-allowed disabled:bg-gray-100"
+                >
+                  <option value="">
+                    {categoriesLoading
+                      ? "Loading categories..."
+                      : "Select category"}
+                  </option>
+
+                  {categories.map((category) => (
+                    <option
+                      key={category._id}
+                      value={category.name}
+                    >
+                      {category.name}
+                    </option>
+                  ))}
+
+                  {formData.category &&
+                    !categories.some(
+                      (category) =>
+                        category.name === formData.category
+                    ) && (
+                      <option value={formData.category}>
+                        {formData.category}
+                      </option>
+                    )}
+                </select>
               </div>
 
               {/* Strength */}
