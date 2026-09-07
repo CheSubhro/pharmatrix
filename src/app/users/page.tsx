@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Pencil } from "lucide-react";
 
 interface User {
   _id: string;
@@ -100,6 +101,10 @@ export default function UsersPage() {
                     <th className="px-6 py-4 font-semibold">
                       Created
                     </th>
+
+                    <th className="px-6 py-4 text-right font-semibold">
+                      Action
+                    </th>
                   </tr>
                 </thead>
 
@@ -140,6 +145,16 @@ export default function UsersPage() {
                           user.createdAt
                         ).toLocaleDateString()}
                       </td>
+
+                      <td className="px-6 py-4 text-right">
+                        <Link
+                          href={`/users/${user._id}/edit`}
+                          className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition hover:bg-gray-100"
+                        >
+                          <Pencil size={15} />
+                          Edit
+                        </Link>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -151,3 +166,4 @@ export default function UsersPage() {
     </main>
   );
 }
+
