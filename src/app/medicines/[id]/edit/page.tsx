@@ -3,8 +3,11 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+
 import { useParams, useRouter } from "next/navigation";
+
 import Link from "next/link";
+
 import { toast } from "sonner";
 
 type MedicineFormData = {
@@ -15,6 +18,7 @@ type MedicineFormData = {
   strength: string;
   dosageForm: string;
   rack: string;
+  shelf: string;
   minimumStock: string;
   purchasePrice: string;
   sellingPrice: string;
@@ -26,27 +30,44 @@ type Category = {
   name: string;
 };
 
+type Rack = {
+  _id: string;
+  name: string;
+  code: string;
+  shelves: string[];
+};
+
 export default function EditMedicinePage() {
   const router = useRouter();
+
   const params = useParams();
+
   const id = params.id as string;
 
-  const [formData, setFormData] = useState<MedicineFormData>({
-    name: "",
-    genericName: "",
-    company: "",
-    category: "",
-    strength: "",
-    dosageForm: "",
-    rack: "",
-    minimumStock: "10",
-    purchasePrice: "",
-    sellingPrice: "",
-    taxRate: "0",
-  });
+  const [formData, setFormData] =
+    useState<MedicineFormData>({
+      name: "",
+      genericName: "",
+      company: "",
+      category: "",
+      strength: "",
+      dosageForm: "",
+      rack: "",
+      shelf: "",
+      minimumStock: "10",
+      purchasePrice: "",
+      sellingPrice: "",
+      taxRate: "0",
+    });
 
   const [categories, setCategories] = useState<Category[]>([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [racks, setRacks] = useState<Rack[]>([]);
+
+  const [categoriesLoading, setCategoriesLoading] =
+    useState(true);
+
+  const [racksLoading, setRacksLoading] =
+    useState(true);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -58,11 +79,16 @@ export default function EditMedicinePage() {
         setLoading(true);
         setError("");
 
-        const response = await fetch(`/api/medicines/${id}`);
+        const response = await fetch(
+          `/api/medicines/${id}`
+        );
+
         const data = await response.json();
 
         if (!response.ok || !data.success) {
-          throw new Error(data.message || "Failed to fetch medicine");
+          throw new Error(
+            data.message || "Failed to fetch medicine"
+          );
         }
 
         const medicine = data.medicine;
@@ -75,9 +101,16 @@ export default function EditMedicinePage() {
           strength: medicine.strength || "",
           dosageForm: medicine.dosageForm || "",
           rack: medicine.rack || "",
-          minimumStock: String(medicine.minimumStock ?? 10),
-          purchasePrice: String(medicine.purchasePrice ?? ""),
-          sellingPrice: String(medicine.sellingPrice ?? ""),
+          shelf: medicine.shelf || "",
+          minimumStock: String(
+            medicine.minimumStock ?? 10
+          ),
+          purchasePrice: String(
+            medicine.purchasePrice ?? ""
+          ),
+          sellingPrice: String(
+            medicine.sellingPrice ?? ""
+          ),
           taxRate: String(medicine.taxRate ?? 0),
         });
       } catch (error) {
@@ -103,18 +136,25 @@ export default function EditMedicinePage() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch("/api/categories");
+        const response = await fetch(
+          "/api/categories"
+        );
+
         const data = await response.json();
 
         if (!response.ok || !data.success) {
           throw new Error(
-            data.message || "Failed to fetch categories"
+            data.message ||
+              "Failed to fetch categories"
           );
         }
 
         setCategories(data.categories || []);
       } catch (error) {
-        console.error("Fetch categories error:", error);
+        console.error(
+          "Fetch categories error:",
+          error
+        );
 
         toast.error(
           error instanceof Error
@@ -129,10 +169,56 @@ export default function EditMedicinePage() {
     fetchCategories();
   }, []);
 
+  useEffect(() => {
+    const fetchRacks = async () => {
+      try {
+        const response = await fetch("/api/racks");
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(
+            data.message || "Failed to fetch racks"
+          );
+        }
+
+        setRacks(data.racks || []);
+      } catch (error) {
+        console.error("Fetch racks error:", error);
+
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch racks"
+        );
+      } finally {
+        setRacksLoading(false);
+      }
+    };
+
+    fetchRacks();
+  }, []);
+
+  const selectedRack = racks.find(
+    (rack) => rack._id === formData.rack
+  );
+
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement
+    >
   ) => {
     const { name, value } = e.target;
+
+    if (name === "rack") {
+      setFormData((prev) => ({
+        ...prev,
+        rack: value,
+        shelf: "",
+      }));
+
+      return;
+    }
 
     setFormData((prev) => ({
       ...prev,
@@ -140,7 +226,9 @@ export default function EditMedicinePage() {
     }));
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (
+    e: FormEvent<HTMLFormElement>
+  ) => {
     e.preventDefault();
 
     setError("");
@@ -161,17 +249,23 @@ export default function EditMedicinePage() {
     }
 
     if (Number(formData.purchasePrice) < 0) {
-      toast.error("Purchase price cannot be negative.");
+      toast.error(
+        "Purchase price cannot be negative."
+      );
       return;
     }
 
     if (Number(formData.sellingPrice) < 0) {
-      toast.error("Selling price cannot be negative.");
+      toast.error(
+        "Selling price cannot be negative."
+      );
       return;
     }
 
     if (Number(formData.minimumStock) < 0) {
-      toast.error("Minimum stock cannot be negative.");
+      toast.error(
+        "Minimum stock cannot be negative."
+      );
       return;
     }
 
@@ -183,40 +277,58 @@ export default function EditMedicinePage() {
     try {
       setSaving(true);
 
-      const response = await fetch(`/api/medicines/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          genericName: formData.genericName.trim(),
-          company: formData.company.trim(),
-          category: formData.category.trim(),
-          strength: formData.strength.trim(),
-          dosageForm: formData.dosageForm.trim(),
-          rack: formData.rack.trim(),
-          minimumStock: Number(formData.minimumStock),
-          purchasePrice: Number(formData.purchasePrice),
-          sellingPrice: Number(formData.sellingPrice),
-          taxRate: Number(formData.taxRate),
-        }),
-      });
+      const response = await fetch(
+        `/api/medicines/${id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: formData.name.trim(),
+            genericName:
+              formData.genericName.trim(),
+            company: formData.company.trim(),
+            category: formData.category.trim(),
+            strength: formData.strength.trim(),
+            dosageForm:
+              formData.dosageForm.trim(),
+            rack: formData.rack.trim(),
+            shelf: formData.shelf.trim(),
+            minimumStock: Number(
+              formData.minimumStock
+            ),
+            purchasePrice: Number(
+              formData.purchasePrice
+            ),
+            sellingPrice: Number(
+              formData.sellingPrice
+            ),
+            taxRate: Number(formData.taxRate),
+          }),
+        }
+      );
 
       const data = await response.json();
 
       if (!response.ok || !data.success) {
         throw new Error(
-          data.message || "Failed to update medicine"
+          data.message ||
+            "Failed to update medicine"
         );
       }
 
-      toast.success("Medicine updated successfully");
+      toast.success(
+        "Medicine updated successfully"
+      );
 
       router.push("/medicines");
       router.refresh();
     } catch (error) {
-      console.error("Update medicine error:", error);
+      console.error(
+        "Update medicine error:",
+        error
+      );
 
       const message =
         error instanceof Error
@@ -279,7 +391,8 @@ export default function EditMedicinePage() {
           </h1>
 
           <p className="mt-1 text-sm text-gray-500">
-            Update the medicine information in your pharmacy inventory.
+            Update the medicine information in your
+            pharmacy inventory.
           </p>
         </div>
 
@@ -309,7 +422,9 @@ export default function EditMedicinePage() {
                   className="mb-1.5 block text-sm font-medium text-gray-700"
                 >
                   Medicine Name{" "}
-                  <span className="text-red-500">*</span>
+                  <span className="text-red-500">
+                    *
+                  </span>
                 </label>
 
                 <input
@@ -399,9 +514,12 @@ export default function EditMedicinePage() {
                   {formData.category &&
                     !categories.some(
                       (category) =>
-                        category.name === formData.category
+                        category.name ===
+                        formData.category
                     ) && (
-                      <option value={formData.category}>
+                      <option
+                        value={formData.category}
+                      >
                         {formData.category}
                       </option>
                     )}
@@ -444,18 +562,42 @@ export default function EditMedicinePage() {
                   onChange={handleChange}
                   className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-black focus:ring-2 focus:ring-gray-200"
                 >
-                  <option value="">Select dosage form</option>
-                  <option value="Tablet">Tablet</option>
-                  <option value="Capsule">Capsule</option>
-                  <option value="Syrup">Syrup</option>
-                  <option value="Suspension">Suspension</option>
-                  <option value="Injection">Injection</option>
-                  <option value="Cream">Cream</option>
-                  <option value="Ointment">Ointment</option>
-                  <option value="Drops">Drops</option>
-                  <option value="Inhaler">Inhaler</option>
-                  <option value="Powder">Powder</option>
-                  <option value="Other">Other</option>
+                  <option value="">
+                    Select dosage form
+                  </option>
+                  <option value="Tablet">
+                    Tablet
+                  </option>
+                  <option value="Capsule">
+                    Capsule
+                  </option>
+                  <option value="Syrup">
+                    Syrup
+                  </option>
+                  <option value="Suspension">
+                    Suspension
+                  </option>
+                  <option value="Injection">
+                    Injection
+                  </option>
+                  <option value="Cream">
+                    Cream
+                  </option>
+                  <option value="Ointment">
+                    Ointment
+                  </option>
+                  <option value="Drops">
+                    Drops
+                  </option>
+                  <option value="Inhaler">
+                    Inhaler
+                  </option>
+                  <option value="Powder">
+                    Powder
+                  </option>
+                  <option value="Other">
+                    Other
+                  </option>
                 </select>
               </div>
             </div>
@@ -474,18 +616,85 @@ export default function EditMedicinePage() {
                   htmlFor="rack"
                   className="mb-1.5 block text-sm font-medium text-gray-700"
                 >
-                  Rack / Shelf
+                  Rack
                 </label>
 
-                <input
+                <select
                   id="rack"
                   name="rack"
-                  type="text"
                   value={formData.rack}
                   onChange={handleChange}
-                  placeholder="e.g. R1-S2"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm outline-none transition focus:border-black focus:ring-2 focus:ring-gray-200"
-                />
+                  disabled={racksLoading}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-black focus:ring-2 focus:ring-gray-200 disabled:cursor-not-allowed disabled:bg-gray-100"
+                >
+                  <option value="">
+                    {racksLoading
+                      ? "Loading racks..."
+                      : "Select rack"}
+                  </option>
+
+                  {racks.map((rack) => (
+                    <option
+                      key={rack._id}
+                      value={rack._id}
+                    >
+                      {rack.name} ({rack.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Shelf */}
+              <div>
+                <label
+                  htmlFor="shelf"
+                  className="mb-1.5 block text-sm font-medium text-gray-700"
+                >
+                  Shelf
+                </label>
+
+                <select
+                  id="shelf"
+                  name="shelf"
+                  value={formData.shelf}
+                  onChange={handleChange}
+                  disabled={
+                    !selectedRack ||
+                    selectedRack.shelves.length === 0
+                  }
+                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-black focus:ring-2 focus:ring-gray-200 disabled:cursor-not-allowed disabled:bg-gray-100"
+                >
+                  <option value="">
+                    {!selectedRack
+                      ? "Select rack first"
+                      : selectedRack.shelves.length === 0
+                        ? "No shelves available"
+                        : "Select shelf"}
+                  </option>
+
+                  {selectedRack?.shelves.map(
+                    (shelf) => (
+                      <option
+                        key={shelf}
+                        value={shelf}
+                      >
+                        {shelf}
+                      </option>
+                    )
+                  )}
+
+                  {formData.shelf &&
+                    selectedRack &&
+                    !selectedRack.shelves.includes(
+                      formData.shelf
+                    ) && (
+                      <option
+                        value={formData.shelf}
+                      >
+                        {formData.shelf}
+                      </option>
+                    )}
+                </select>
               </div>
 
               {/* Minimum Stock */}
@@ -508,7 +717,8 @@ export default function EditMedicinePage() {
                 />
 
                 <p className="mt-1 text-xs text-gray-400">
-                  Low-stock alert will be based on this value.
+                  Low-stock alert will be based on
+                  this value.
                 </p>
               </div>
             </div>
@@ -528,7 +738,9 @@ export default function EditMedicinePage() {
                   className="mb-1.5 block text-sm font-medium text-gray-700"
                 >
                   Purchase Price{" "}
-                  <span className="text-red-500">*</span>
+                  <span className="text-red-500">
+                    *
+                  </span>
                 </label>
 
                 <input
@@ -552,7 +764,9 @@ export default function EditMedicinePage() {
                   className="mb-1.5 block text-sm font-medium text-gray-700"
                 >
                   Selling Price{" "}
-                  <span className="text-red-500">*</span>
+                  <span className="text-red-500">
+                    *
+                  </span>
                 </label>
 
                 <input
@@ -607,7 +821,9 @@ export default function EditMedicinePage() {
               disabled={saving}
               className="inline-flex items-center justify-center rounded-lg bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
             >
-              {saving ? "Updating..." : "Update Medicine"}
+              {saving
+                ? "Updating..."
+                : "Update Medicine"}
             </button>
           </div>
         </form>
