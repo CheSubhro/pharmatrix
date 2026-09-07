@@ -10,6 +10,7 @@ export interface IMedicine extends Document {
   strength?: string;
   dosageForm?: string;
   rack?: string;
+  shelf?: string;
   minimumStock: number;
   sellingPrice: number;
   purchasePrice: number;
@@ -54,6 +55,8 @@ const MedicineSchema = new Schema<IMedicine>(
       type: String,
       trim: true,
     },
+
+    shelf: { type: String, trim: true },
 
     minimumStock: {
       type: Number,
