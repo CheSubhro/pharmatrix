@@ -1,7 +1,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
-
-import {connectDB} from "@/lib/mongodb";
+import { connectDB } from "@/lib/mongodb";
 import Medicine from "@/models/Medicine";
 
 // GET /api/medicines
@@ -57,29 +56,57 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Required field validation
-    if (!name || !sellingPrice || !purchasePrice) {
+    if (!name || name.trim() === "") {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Medicine name, selling price and purchase price are required",
+          message: "Medicine name is required",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (
+      sellingPrice === undefined ||
+      sellingPrice === null ||
+      Number(sellingPrice) < 0
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Valid selling price is required",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (
+      purchasePrice === undefined ||
+      purchasePrice === null ||
+      Number(purchasePrice) < 0
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Valid purchase price is required",
         },
         { status: 400 }
       );
     }
 
     const medicine = await Medicine.create({
-      name,
+      name: name.trim(),
       genericName,
       company,
       category,
       strength,
       dosageForm,
       rack,
-      minimumStock: minimumStock ?? 10,
-      sellingPrice,
-      purchasePrice,
-      taxRate: taxRate ?? 0,
+      minimumStock:
+        minimumStock !== undefined ? Number(minimumStock) : 10,
+      sellingPrice: Number(sellingPrice),
+      purchasePrice: Number(purchasePrice),
+      taxRate: taxRate !== undefined ? Number(taxRate) : 0,
       isActive: true,
     });
 
@@ -103,4 +130,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
