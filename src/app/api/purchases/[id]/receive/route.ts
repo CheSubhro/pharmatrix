@@ -198,7 +198,7 @@ export async function POST(
         quantity: item.quantity,
         reason: "Purchase",
         reference: purchase.purchaseNumber,
-        note: item.invoiceNumber || undefined,
+        note: `Purchase ${purchase.purchaseNumber}`,
         movementDate: purchase.purchaseDate || new Date(),
       });
 
