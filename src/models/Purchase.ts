@@ -14,8 +14,14 @@ export interface IPurchaseItem {
 
 export interface IPurchase extends Document {
   purchaseNumber: string;
+
+  // Supplier reference
+  supplier?: mongoose.Types.ObjectId;
+
+  // Kept for backward compatibility
   supplierName: string;
   supplierPhone?: string;
+
   invoiceNumber?: string;
   purchaseDate: Date;
   status: "DRAFT" | "ORDERED" | "RECEIVED" | "CANCELLED";
@@ -77,6 +83,11 @@ const PurchaseSchema = new Schema<IPurchase>(
       required: true,
       unique: true,
       trim: true,
+    },
+
+    supplier: {
+      type: Schema.Types.ObjectId,
+      ref: "Supplier",
     },
 
     supplierName: {

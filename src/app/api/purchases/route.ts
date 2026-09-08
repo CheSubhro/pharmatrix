@@ -1,15 +1,20 @@
 
-
 import { NextRequest, NextResponse } from "next/server";
-import {connectDB} from "@/lib/mongodb";
+
+import { connectDB } from "@/lib/mongodb";
 import Purchase from "@/models/Purchase";
 import Medicine from "@/models/Medicine";
+import Supplier from "@/models/Supplier";
 
 export async function GET() {
   try {
     await connectDB();
 
     const purchases = await Purchase.find()
+      .populate(
+        "supplier",
+        "supplierName companyName phone email gstin contactPerson paymentTerms"
+      )
       .populate(
         "items.medicine",
         "name genericName company strength dosageForm"
@@ -22,7 +27,10 @@ export async function GET() {
       purchases,
     });
   } catch (error) {
-    console.error("GET /api/purchases error:", error);
+    console.error(
+      "GET /api/purchases error:",
+      error
+    );
 
     return NextResponse.json(
       {
@@ -34,7 +42,9 @@ export async function GET() {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(
+  request: NextRequest
+) {
   try {
     await connectDB();
 
@@ -42,6 +52,7 @@ export async function POST(request: NextRequest) {
 
     const {
       purchaseNumber,
+      supplier,
       supplierName,
       supplierPhone,
       invoiceNumber,
@@ -53,6 +64,7 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Basic validation
+
     if (!purchaseNumber?.trim()) {
       return NextResponse.json(
         {
@@ -63,11 +75,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!supplierName?.trim()) {
+    if (!supplier) {
       return NextResponse.json(
         {
           success: false,
-          message: "Supplier name is required",
+          message: "Supplier is required",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate supplier
+
+    const selectedSupplier =
+      await Supplier.findOne({
+        _id: supplier,
+        isActive: true,
+      }).lean();
+
+    if (!selectedSupplier) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Selected supplier is invalid or inactive",
         },
         { status: 400 }
       );
@@ -77,39 +108,51 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: "At least one purchase item is required",
+          message:
+            "At least one purchase item is required",
         },
         { status: 400 }
       );
     }
 
     // Duplicate purchase number check
-    const existingPurchase = await Purchase.findOne({
-      purchaseNumber: purchaseNumber.trim(),
-    });
+
+    const existingPurchase =
+      await Purchase.findOne({
+        purchaseNumber:
+          purchaseNumber.trim(),
+      });
 
     if (existingPurchase) {
       return NextResponse.json(
         {
           success: false,
-          message: "Purchase number already exists",
+          message:
+            "Purchase number already exists",
         },
         { status: 409 }
       );
     }
 
-    const medicineIds = items.map((item) => item.medicine);
+    // Validate medicines
+
+    const medicineIds = items.map(
+      (item) => item.medicine
+    );
 
     const medicines = await Medicine.find({
       _id: { $in: medicineIds },
       isActive: true,
     }).lean();
 
-    if (medicines.length !== medicineIds.length) {
+    if (
+      medicines.length !== medicineIds.length
+    ) {
       return NextResponse.json(
         {
           success: false,
-          message: "One or more medicines are invalid or inactive",
+          message:
+            "One or more medicines are invalid or inactive",
         },
         { status: 400 }
       );
@@ -124,7 +167,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            message: "Medicine is required for every item",
+            message:
+              "Medicine is required for every item",
           },
           { status: 400 }
         );
@@ -134,7 +178,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            message: "Batch number is required for every item",
+            message:
+              "Batch number is required for every item",
           },
           { status: 400 }
         );
@@ -144,7 +189,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            message: "Expiry date is required for every item",
+            message:
+              "Expiry date is required for every item",
           },
           { status: 400 }
         );
@@ -152,53 +198,79 @@ export async function POST(request: NextRequest) {
 
       if (
         item.manufacturingDate &&
-        new Date(item.manufacturingDate) > new Date(item.expiryDate)
+        new Date(item.manufacturingDate) >
+          new Date(item.expiryDate)
       ) {
         return NextResponse.json(
           {
             success: false,
-            message: "Manufacturing date cannot be after expiry date",
+            message:
+              "Manufacturing date cannot be after expiry date",
           },
           { status: 400 }
         );
       }
 
       const quantity = Number(item.quantity);
-      const purchasePrice = Number(item.purchasePrice);
 
-      if (!Number.isInteger(quantity) || quantity <= 0) {
+      const purchasePrice =
+        Number(item.purchasePrice);
+
+      if (
+        !Number.isInteger(quantity) ||
+        quantity <= 0
+      ) {
         return NextResponse.json(
           {
             success: false,
-            message: "Quantity must be a positive whole number",
+            message:
+              "Quantity must be a positive whole number",
           },
           { status: 400 }
         );
       }
 
-      if (!Number.isFinite(purchasePrice) || purchasePrice < 0) {
+      if (
+        !Number.isFinite(purchasePrice) ||
+        purchasePrice < 0
+      ) {
         return NextResponse.json(
           {
             success: false,
-            message: "Purchase price must be a valid positive number",
+            message:
+              "Purchase price must be a valid positive number",
           },
           { status: 400 }
         );
       }
 
-      const total = Number((quantity * purchasePrice).toFixed(2));
+      const total = Number(
+        (quantity * purchasePrice).toFixed(2)
+      );
 
       subtotal += total;
 
       purchaseItems.push({
         medicine: item.medicine,
-        batchNumber: item.batchNumber.trim(),
-        manufacturingDate: item.manufacturingDate
-          ? new Date(item.manufacturingDate)
-          : undefined,
-        expiryDate: new Date(item.expiryDate),
+
+        batchNumber:
+          item.batchNumber.trim(),
+
+        manufacturingDate:
+          item.manufacturingDate
+            ? new Date(
+                item.manufacturingDate
+              )
+            : undefined,
+
+        expiryDate: new Date(
+          item.expiryDate
+        ),
+
         quantity,
+
         purchasePrice,
+
         total,
       });
     }
@@ -219,45 +291,84 @@ export async function POST(request: NextRequest) {
       (subtotal + taxAmount).toFixed(2)
     );
 
+    // Create purchase
+
     const purchase = await Purchase.create({
-      purchaseNumber: purchaseNumber.trim(),
-      supplierName: supplierName.trim(),
-      supplierPhone: supplierPhone?.trim() || undefined,
-      invoiceNumber: invoiceNumber?.trim() || undefined,
+      purchaseNumber:
+        purchaseNumber.trim(),
+
+      supplier: selectedSupplier._id,
+
+      // Snapshot supplier details
+      // for backward compatibility and invoice history
+      supplierName:
+        selectedSupplier.supplierName,
+
+      supplierPhone:
+        selectedSupplier.phone ||
+        supplierPhone?.trim() ||
+        undefined,
+
+      invoiceNumber:
+        invoiceNumber?.trim() ||
+        undefined,
+
       purchaseDate: purchaseDate
         ? new Date(purchaseDate)
         : new Date(),
+
       status: status || "DRAFT",
+
       items: purchaseItems,
-      subtotal: Number(subtotal.toFixed(2)),
+
+      subtotal: Number(
+        subtotal.toFixed(2)
+      ),
+
       tax: taxAmount,
+
       grandTotal,
-      note: note?.trim() || undefined,
+
+      note:
+        note?.trim() ||
+        undefined,
     });
 
-    const populatedPurchase = await Purchase.findById(purchase._id)
-      .populate(
-        "items.medicine",
-        "name genericName company strength dosageForm"
+    const populatedPurchase =
+      await Purchase.findById(
+        purchase._id
       )
-      .lean();
+        .populate(
+          "supplier",
+          "supplierName companyName phone email gstin contactPerson paymentTerms"
+        )
+        .populate(
+          "items.medicine",
+          "name genericName company strength dosageForm"
+        )
+        .lean();
 
     return NextResponse.json(
       {
         success: true,
-        message: "Purchase created successfully",
+        message:
+          "Purchase created successfully",
         purchase: populatedPurchase,
       },
       { status: 201 }
     );
   } catch (error: any) {
-    console.error("POST /api/purchases error:", error);
+    console.error(
+      "POST /api/purchases error:",
+      error
+    );
 
     if (error?.code === 11000) {
       return NextResponse.json(
         {
           success: false,
-          message: "Purchase number already exists",
+          message:
+            "Purchase number already exists",
         },
         { status: 409 }
       );
@@ -266,7 +377,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        message: "Failed to create purchase",
+        message:
+          "Failed to create purchase",
       },
       { status: 500 }
     );

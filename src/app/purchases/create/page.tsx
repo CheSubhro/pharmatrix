@@ -16,6 +16,15 @@ interface Medicine {
   purchasePrice?: number;
 }
 
+interface Supplier {
+  _id: string;
+  supplierName: string;
+  companyName?: string;
+  phone?: string;
+  email?: string;
+  isActive: boolean;
+}
+
 interface PurchaseItem {
   medicine: string;
   batchNumber: string;
@@ -29,21 +38,32 @@ export default function CreatePurchasePage() {
   const router = useRouter();
 
   const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+
   const [loadingMedicines, setLoadingMedicines] = useState(true);
+  const [loadingSuppliers, setLoadingSuppliers] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const [purchaseNumber, setPurchaseNumber] = useState(
     `PO-${Date.now()}`
   );
+
+  const [supplier, setSupplier] = useState("");
   const [supplierName, setSupplierName] = useState("");
   const [supplierPhone, setSupplierPhone] = useState("");
+
   const [invoiceNumber, setInvoiceNumber] = useState("");
+
   const [purchaseDate, setPurchaseDate] = useState(
     new Date().toISOString().split("T")[0]
   );
+
   const [tax, setTax] = useState("");
   const [note, setNote] = useState("");
-  const [status, setStatus] = useState<"DRAFT" | "ORDERED">("DRAFT");
+
+  const [status, setStatus] = useState<"DRAFT" | "ORDERED">(
+    "DRAFT"
+  );
 
   const [items, setItems] = useState<PurchaseItem[]>([
     {
@@ -58,6 +78,7 @@ export default function CreatePurchasePage() {
 
   useEffect(() => {
     fetchMedicines();
+    fetchSuppliers();
   }, []);
 
   const fetchMedicines = async () => {
@@ -68,16 +89,65 @@ export default function CreatePurchasePage() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to fetch medicines");
+        throw new Error(
+          data.message || "Failed to fetch medicines"
+        );
       }
 
       setMedicines(data.medicines || []);
     } catch (error: any) {
       console.error(error);
-      toast.error(error.message || "Failed to load medicines");
+      toast.error(
+        error.message || "Failed to load medicines"
+      );
     } finally {
       setLoadingMedicines(false);
     }
+  };
+
+  const fetchSuppliers = async () => {
+    try {
+      setLoadingSuppliers(true);
+
+      const response = await fetch("/api/suppliers");
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.message || "Failed to fetch suppliers"
+        );
+      }
+
+      const activeSuppliers = (data.suppliers || []).filter(
+        (item: Supplier) => item.isActive
+      );
+
+      setSuppliers(activeSuppliers);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(
+        error.message || "Failed to load suppliers"
+      );
+    } finally {
+      setLoadingSuppliers(false);
+    }
+  };
+
+  const handleSupplierChange = (supplierId: string) => {
+    setSupplier(supplierId);
+
+    const selectedSupplier = suppliers.find(
+      (item) => item._id === supplierId
+    );
+
+    if (!selectedSupplier) {
+      setSupplierName("");
+      setSupplierPhone("");
+      return;
+    }
+
+    setSupplierName(selectedSupplier.supplierName);
+    setSupplierPhone(selectedSupplier.phone || "");
   };
 
   const addItem = () => {
@@ -100,7 +170,11 @@ export default function CreatePurchasePage() {
       return;
     }
 
-    setItems(items.filter((_, itemIndex) => itemIndex !== index));
+    setItems(
+      items.filter(
+        (_, itemIndex) => itemIndex !== index
+      )
+    );
   };
 
   const updateItem = (
@@ -146,7 +220,8 @@ export default function CreatePurchasePage() {
 
   const getItemTotal = (item: PurchaseItem) => {
     const quantity = Number(item.quantity) || 0;
-    const purchasePrice = Number(item.purchasePrice) || 0;
+    const purchasePrice =
+      Number(item.purchasePrice) || 0;
 
     return quantity * purchasePrice;
   };
@@ -159,7 +234,9 @@ export default function CreatePurchasePage() {
   const taxAmount = Number(tax) || 0;
   const grandTotal = subtotal + taxAmount;
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const handleSubmit = async (
+    event: React.FormEvent
+  ) => {
     event.preventDefault();
 
     if (!purchaseNumber.trim()) {
@@ -167,8 +244,8 @@ export default function CreatePurchasePage() {
       return;
     }
 
-    if (!supplierName.trim()) {
-      toast.error("Supplier name is required");
+    if (!supplier) {
+      toast.error("Please select a supplier");
       return;
     }
 
@@ -181,17 +258,23 @@ export default function CreatePurchasePage() {
       const item = items[i];
 
       if (!item.medicine) {
-        toast.error(`Please select medicine for item ${i + 1}`);
+        toast.error(
+          `Please select medicine for item ${i + 1}`
+        );
         return;
       }
 
       if (!item.batchNumber.trim()) {
-        toast.error(`Batch number is required for item ${i + 1}`);
+        toast.error(
+          `Batch number is required for item ${i + 1}`
+        );
         return;
       }
 
       if (!item.expiryDate) {
-        toast.error(`Expiry date is required for item ${i + 1}`);
+        toast.error(
+          `Expiry date is required for item ${i + 1}`
+        );
         return;
       }
 
@@ -209,14 +292,20 @@ export default function CreatePurchasePage() {
 
       const quantity = Number(item.quantity);
 
-      if (!Number.isInteger(quantity) || quantity <= 0) {
+      if (
+        !Number.isInteger(quantity) ||
+        quantity <= 0
+      ) {
         toast.error(
-          `Quantity must be a positive whole number for item ${i + 1}`
+          `Quantity must be a positive whole number for item ${
+            i + 1
+          }`
         );
         return;
       }
 
-      const purchasePrice = Number(item.purchasePrice);
+      const purchasePrice =
+        Number(item.purchasePrice);
 
       if (
         !Number.isFinite(purchasePrice) ||
@@ -239,11 +328,21 @@ export default function CreatePurchasePage() {
 
       const payload = {
         purchaseNumber: purchaseNumber.trim(),
+
+        supplier,
+
         supplierName: supplierName.trim(),
-        supplierPhone: supplierPhone.trim() || undefined,
-        invoiceNumber: invoiceNumber.trim() || undefined,
+
+        supplierPhone:
+          supplierPhone.trim() || undefined,
+
+        invoiceNumber:
+          invoiceNumber.trim() || undefined,
+
         purchaseDate,
+
         status,
+
         items: items.map((item) => ({
           medicine: item.medicine,
           batchNumber: item.batchNumber.trim(),
@@ -253,7 +352,9 @@ export default function CreatePurchasePage() {
           quantity: Number(item.quantity),
           purchasePrice: Number(item.purchasePrice),
         })),
+
         tax: taxAmount,
+
         note: note.trim() || undefined,
       };
 
@@ -273,14 +374,18 @@ export default function CreatePurchasePage() {
         );
       }
 
-      toast.success("Purchase created successfully");
+      toast.success(
+        "Purchase created successfully"
+      );
 
       router.push("/purchases");
       router.refresh();
     } catch (error: any) {
       console.error(error);
+
       toast.error(
-        error.message || "Failed to create purchase"
+        error.message ||
+          "Failed to create purchase"
       );
     } finally {
       setSaving(false);
@@ -290,23 +395,34 @@ export default function CreatePurchasePage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="mx-auto max-w-7xl">
+
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">
             Create Purchase
           </h1>
+
           <p className="mt-1 text-sm text-gray-500">
             Create a purchase order for medicines.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-6"
+        >
+
           {/* Purchase Information */}
+
           <div className="rounded-xl border bg-white p-6 shadow-sm">
+
             <h2 className="mb-5 text-lg font-semibold text-gray-900">
               Purchase Information
             </h2>
 
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+
+              {/* Purchase Number */}
+
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">
                   Purchase Number *
@@ -316,28 +432,53 @@ export default function CreatePurchasePage() {
                   type="text"
                   value={purchaseNumber}
                   onChange={(e) =>
-                    setPurchaseNumber(e.target.value)
+                    setPurchaseNumber(
+                      e.target.value
+                    )
                   }
                   className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-black"
                   placeholder="PO-001"
                 />
               </div>
 
+              {/* Supplier */}
+
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Supplier Name *
+                  Supplier *
                 </label>
 
-                <input
-                  type="text"
-                  value={supplierName}
+                <select
+                  value={supplier}
+                  disabled={loadingSuppliers}
                   onChange={(e) =>
-                    setSupplierName(e.target.value)
+                    handleSupplierChange(
+                      e.target.value
+                    )
                   }
-                  className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-black"
-                  placeholder="ABC Pharma"
-                />
+                  className="w-full rounded-lg border bg-white px-3 py-2.5 text-sm outline-none focus:border-black"
+                >
+                  <option value="">
+                    {loadingSuppliers
+                      ? "Loading suppliers..."
+                      : "Select supplier"}
+                  </option>
+
+                  {suppliers.map((item) => (
+                    <option
+                      key={item._id}
+                      value={item._id}
+                    >
+                      {item.supplierName}
+                      {item.companyName
+                        ? ` - ${item.companyName}`
+                        : ""}
+                    </option>
+                  ))}
+                </select>
               </div>
+
+              {/* Supplier Phone */}
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">
@@ -347,13 +488,13 @@ export default function CreatePurchasePage() {
                 <input
                   type="text"
                   value={supplierPhone}
-                  onChange={(e) =>
-                    setSupplierPhone(e.target.value)
-                  }
-                  className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-black"
-                  placeholder="9876543210"
+                  readOnly
+                  className="w-full rounded-lg border bg-gray-50 px-3 py-2.5 text-sm outline-none"
+                  placeholder="Supplier phone"
                 />
               </div>
+
+              {/* Invoice Number */}
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">
@@ -364,12 +505,16 @@ export default function CreatePurchasePage() {
                   type="text"
                   value={invoiceNumber}
                   onChange={(e) =>
-                    setInvoiceNumber(e.target.value)
+                    setInvoiceNumber(
+                      e.target.value
+                    )
                   }
                   className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-black"
                   placeholder="INV-001"
                 />
               </div>
+
+              {/* Purchase Date */}
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">
@@ -380,11 +525,15 @@ export default function CreatePurchasePage() {
                   type="date"
                   value={purchaseDate}
                   onChange={(e) =>
-                    setPurchaseDate(e.target.value)
+                    setPurchaseDate(
+                      e.target.value
+                    )
                   }
                   className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-black"
                 />
               </div>
+
+              {/* Status */}
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">
@@ -395,21 +544,31 @@ export default function CreatePurchasePage() {
                   value={status}
                   onChange={(e) =>
                     setStatus(
-                      e.target.value as "DRAFT" | "ORDERED"
+                      e.target.value as
+                        | "DRAFT"
+                        | "ORDERED"
                     )
                   }
-                  className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-black"
+                  className="w-full rounded-lg border bg-white px-3 py-2.5 text-sm outline-none focus:border-black"
                 >
-                  <option value="DRAFT">Draft</option>
-                  <option value="ORDERED">Ordered</option>
+                  <option value="DRAFT">
+                    Draft
+                  </option>
+
+                  <option value="ORDERED">
+                    Ordered
+                  </option>
                 </select>
               </div>
             </div>
           </div>
 
           {/* Medicine Items */}
+
           <div className="rounded-xl border bg-white p-6 shadow-sm">
+
             <div className="mb-5 flex items-center justify-between">
+
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">
                   Purchase Items
@@ -430,12 +589,15 @@ export default function CreatePurchasePage() {
             </div>
 
             <div className="space-y-5">
+
               {items.map((item, index) => (
                 <div
                   key={index}
                   className="rounded-xl border bg-gray-50 p-5"
                 >
+
                   <div className="mb-4 flex items-center justify-between">
+
                     <h3 className="font-semibold text-gray-800">
                       Item {index + 1}
                     </h3>
@@ -443,7 +605,9 @@ export default function CreatePurchasePage() {
                     {items.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => removeItem(index)}
+                        onClick={() =>
+                          removeItem(index)
+                        }
                         className="text-sm font-medium text-red-600 hover:text-red-700"
                       >
                         Remove
@@ -452,6 +616,9 @@ export default function CreatePurchasePage() {
                   </div>
 
                   <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+
+                    {/* Medicine */}
+
                     <div>
                       <label className="mb-2 block text-sm font-medium text-gray-700">
                         Medicine *
@@ -474,19 +641,26 @@ export default function CreatePurchasePage() {
                             : "Select medicine"}
                         </option>
 
-                        {medicines.map((medicine) => (
-                          <option
-                            key={medicine._id}
-                            value={medicine._id}
-                          >
-                            {medicine.name}
-                            {medicine.strength
-                              ? ` - ${medicine.strength}`
-                              : ""}
-                          </option>
-                        ))}
+                        {medicines.map(
+                          (medicine) => (
+                            <option
+                              key={medicine._id}
+                              value={
+                                medicine._id
+                              }
+                            >
+                              {medicine.name}
+
+                              {medicine.strength
+                                ? ` - ${medicine.strength}`
+                                : ""}
+                            </option>
+                          )
+                        )}
                       </select>
                     </div>
+
+                    {/* Batch */}
 
                     <div>
                       <label className="mb-2 block text-sm font-medium text-gray-700">
@@ -507,6 +681,8 @@ export default function CreatePurchasePage() {
                         placeholder="BATCH-001"
                       />
                     </div>
+
+                    {/* Quantity */}
 
                     <div>
                       <label className="mb-2 block text-sm font-medium text-gray-700">
@@ -530,6 +706,8 @@ export default function CreatePurchasePage() {
                       />
                     </div>
 
+                    {/* Purchase Price */}
+
                     <div>
                       <label className="mb-2 block text-sm font-medium text-gray-700">
                         Purchase Price *
@@ -552,6 +730,8 @@ export default function CreatePurchasePage() {
                       />
                     </div>
 
+                    {/* Manufacturing Date */}
+
                     <div>
                       <label className="mb-2 block text-sm font-medium text-gray-700">
                         Manufacturing Date
@@ -559,7 +739,9 @@ export default function CreatePurchasePage() {
 
                       <input
                         type="date"
-                        value={item.manufacturingDate}
+                        value={
+                          item.manufacturingDate
+                        }
                         onChange={(e) =>
                           updateItem(
                             index,
@@ -570,6 +752,8 @@ export default function CreatePurchasePage() {
                         className="w-full rounded-lg border bg-white px-3 py-2.5 text-sm outline-none focus:border-black"
                       />
                     </div>
+
+                    {/* Expiry Date */}
 
                     <div>
                       <label className="mb-2 block text-sm font-medium text-gray-700">
@@ -592,14 +776,20 @@ export default function CreatePurchasePage() {
                   </div>
 
                   <div className="mt-4 flex justify-end">
+
                     <div className="rounded-lg bg-white px-4 py-3 text-right shadow-sm">
+
                       <p className="text-xs text-gray-500">
                         Item Total
                       </p>
 
                       <p className="text-lg font-bold text-gray-900">
-                        ₹{getItemTotal(item).toFixed(2)}
+                        ₹
+                        {getItemTotal(
+                          item
+                        ).toFixed(2)}
                       </p>
+
                     </div>
                   </div>
                 </div>
@@ -608,8 +798,11 @@ export default function CreatePurchasePage() {
           </div>
 
           {/* Note & Summary */}
+
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+
             <div className="rounded-xl border bg-white p-6 shadow-sm">
+
               <h2 className="mb-5 text-lg font-semibold text-gray-900">
                 Additional Information
               </h2>
@@ -624,20 +817,25 @@ export default function CreatePurchasePage() {
                   min="0"
                   step="0.01"
                   value={tax}
-                  onChange={(e) => setTax(e.target.value)}
+                  onChange={(e) =>
+                    setTax(e.target.value)
+                  }
                   className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-black"
                   placeholder="0"
                 />
               </div>
 
               <div className="mt-5">
+
                 <label className="mb-2 block text-sm font-medium text-gray-700">
                   Note
                 </label>
 
                 <textarea
                   value={note}
-                  onChange={(e) => setNote(e.target.value)}
+                  onChange={(e) =>
+                    setNote(e.target.value)
+                  }
                   rows={5}
                   className="w-full resize-none rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-black"
                   placeholder="Additional purchase notes..."
@@ -646,12 +844,15 @@ export default function CreatePurchasePage() {
             </div>
 
             <div className="rounded-xl border bg-white p-6 shadow-sm">
+
               <h2 className="mb-5 text-lg font-semibold text-gray-900">
                 Purchase Summary
               </h2>
 
               <div className="space-y-3">
+
                 <div className="flex justify-between text-sm">
+
                   <span className="text-gray-600">
                     Subtotal
                   </span>
@@ -662,6 +863,7 @@ export default function CreatePurchasePage() {
                 </div>
 
                 <div className="flex justify-between text-sm">
+
                   <span className="text-gray-600">
                     Tax
                   </span>
@@ -672,7 +874,9 @@ export default function CreatePurchasePage() {
                 </div>
 
                 <div className="border-t pt-3">
+
                   <div className="flex justify-between">
+
                     <span className="text-base font-semibold text-gray-900">
                       Grand Total
                     </span>
@@ -687,10 +891,14 @@ export default function CreatePurchasePage() {
           </div>
 
           {/* Actions */}
+
           <div className="flex justify-end gap-3">
+
             <button
               type="button"
-              onClick={() => router.push("/purchases")}
+              onClick={() =>
+                router.push("/purchases")
+              }
               className="rounded-lg border px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
             >
               Cancel
@@ -701,7 +909,9 @@ export default function CreatePurchasePage() {
               disabled={saving}
               className="rounded-lg bg-black px-6 py-2.5 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {saving ? "Saving..." : "Create Purchase"}
+              {saving
+                ? "Saving..."
+                : "Create Purchase"}
             </button>
           </div>
         </form>
@@ -709,3 +919,4 @@ export default function CreatePurchasePage() {
     </div>
   );
 }
+
