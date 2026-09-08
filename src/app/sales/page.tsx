@@ -1,9 +1,7 @@
 
-
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-
 import { toast } from "sonner";
 
 interface Medicine {
@@ -28,6 +26,8 @@ interface Rack {
   name: string;
   code: string;
   shelves: string[];
+  description?: string;
+  isActive: boolean;
 }
 
 interface CartItem {
@@ -40,9 +40,9 @@ export default function SalesPage() {
   const [racks, setRacks] = useState<Rack[]>([]);
 
   const [search, setSearch] = useState("");
-
   const [loading, setLoading] = useState(true);
   const [racksLoading, setRacksLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const [selectedMedicine, setSelectedMedicine] =
     useState<Medicine | null>(null);
@@ -53,8 +53,10 @@ export default function SalesPage() {
 
   const [discount, setDiscount] = useState(0);
 
-  const [error, setError] = useState("");
+  // Step 7.6 - CASH payment
+  const [amountReceived, setAmountReceived] = useState(0);
 
+  // Fetch medicines
   const fetchMedicines = async () => {
     try {
       setLoading(true);
@@ -64,31 +66,20 @@ export default function SalesPage() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(
-          data.message || "Failed to fetch medicines"
-        );
+        throw new Error(data.message || "Failed to fetch medicines");
       }
 
-      const activeMedicines = (data.medicines || []).filter(
-        (medicine: Medicine) => medicine.isActive
-      );
-
-      setMedicines(activeMedicines);
-    } catch (error) {
-      console.error("Fetch medicines error:", error);
-
+      setMedicines(data.medicines || []);
+    } catch (err) {
+      console.error(err);
       setError("Failed to load medicines");
-
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to load medicines"
-      );
+      toast.error("Failed to load medicines");
     } finally {
       setLoading(false);
     }
   };
 
+  // Fetch racks
   const fetchRacks = async () => {
     try {
       setRacksLoading(true);
@@ -97,20 +88,13 @@ export default function SalesPage() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(
-          data.message || "Failed to fetch racks"
-        );
+        throw new Error(data.message || "Failed to fetch racks");
       }
 
       setRacks(data.racks || []);
-    } catch (error) {
-      console.error("Fetch racks error:", error);
-
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to fetch racks"
-      );
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load racks");
     } finally {
       setRacksLoading(false);
     }
@@ -121,14 +105,11 @@ export default function SalesPage() {
     fetchRacks();
   }, []);
 
+  // Rack display
   const getRackDisplay = (rackId?: string) => {
-    if (!rackId) {
-      return "-";
-    }
+    if (!rackId) return "-";
 
-    const rack = racks.find(
-      (item) => item._id === rackId
-    );
+    const rack = racks.find((item) => item._id === rackId);
 
     if (!rack) {
       return rackId;
@@ -137,49 +118,42 @@ export default function SalesPage() {
     return `${rack.name} (${rack.code})`;
   };
 
-  const filteredMedicines = medicines.filter((medicine) => {
-    const searchText = search.toLowerCase().trim();
+  // Medicine search
+  const filteredMedicines = useMemo(() => {
+    const query = search.trim().toLowerCase();
 
-    if (!searchText) {
-      return false;
+    if (!query) {
+      return medicines;
     }
 
-    const rackDisplay = getRackDisplay(
-      medicine.rack
-    ).toLowerCase();
+    return medicines.filter((medicine) => {
+      return [
+        medicine.name,
+        medicine.genericName,
+        medicine.company,
+        medicine.category,
+        medicine.strength,
+        medicine.dosageForm,
+        medicine.rack,
+        medicine.shelf,
+      ]
+        .filter(Boolean)
+        .some((value) =>
+          String(value).toLowerCase().includes(query)
+        );
+    });
+  }, [medicines, search]);
 
-    const shelfDisplay =
-      medicine.shelf?.toLowerCase() || "";
-
-    return (
-      medicine.name
-        ?.toLowerCase()
-        .includes(searchText) ||
-      medicine.genericName
-        ?.toLowerCase()
-        .includes(searchText) ||
-      medicine.company
-        ?.toLowerCase()
-        .includes(searchText) ||
-      medicine.category
-        ?.toLowerCase()
-        .includes(searchText) ||
-      medicine.strength
-        ?.toLowerCase()
-        .includes(searchText) ||
-      rackDisplay.includes(searchText) ||
-      shelfDisplay.includes(searchText)
-    );
-  });
-
+  // Select medicine
   const handleSelectMedicine = (medicine: Medicine) => {
     setSelectedMedicine(medicine);
     setQuantity(1);
   };
 
+  // Add medicine to cart
   const handleAddToCart = () => {
     if (!selectedMedicine) {
-      toast.error("Please select a medicine first");
+      toast.error("Please select a medicine");
       return;
     }
 
@@ -188,46 +162,39 @@ export default function SalesPage() {
       return;
     }
 
-    const existingItem = cart.find(
-      (item) =>
-        item.medicine._id === selectedMedicine._id
-    );
+    setCart((currentCart) => {
+      const existingItem = currentCart.find(
+        (item) => item.medicine._id === selectedMedicine._id
+      );
 
-    if (existingItem) {
-      setCart((prev) =>
-        prev.map((item) =>
+      if (existingItem) {
+        return currentCart.map((item) =>
           item.medicine._id === selectedMedicine._id
             ? {
                 ...item,
                 quantity: item.quantity + quantity,
               }
             : item
-        )
-      );
+        );
+      }
 
-      toast.success(
-        `${selectedMedicine.name} quantity updated`
-      );
-    } else {
-      setCart((prev) => [
-        ...prev,
+      return [
+        ...currentCart,
         {
           medicine: selectedMedicine,
           quantity,
         },
-      ]);
+      ];
+    });
 
-      toast.success(
-        `${selectedMedicine.name} added to cart`
-      );
-    }
-
+    toast.success(`${selectedMedicine.name} added to cart`);
     setQuantity(1);
   };
 
+  // Increase quantity
   const increaseQuantity = (medicineId: string) => {
-    setCart((prev) =>
-      prev.map((item) =>
+    setCart((currentCart) =>
+      currentCart.map((item) =>
         item.medicine._id === medicineId
           ? {
               ...item,
@@ -238,9 +205,10 @@ export default function SalesPage() {
     );
   };
 
+  // Decrease quantity
   const decreaseQuantity = (medicineId: string) => {
-    setCart((prev) =>
-      prev
+    setCart((currentCart) =>
+      currentCart
         .map((item) =>
           item.medicine._id === medicineId
             ? {
@@ -253,57 +221,46 @@ export default function SalesPage() {
     );
   };
 
+  // Remove item
   const removeFromCart = (medicineId: string) => {
-    const item = cart.find(
-      (cartItem) =>
-        cartItem.medicine._id === medicineId
-    );
-
-    setCart((prev) =>
-      prev.filter(
-        (cartItem) =>
-          cartItem.medicine._id !== medicineId
+    setCart((currentCart) =>
+      currentCart.filter(
+        (item) => item.medicine._id !== medicineId
       )
     );
 
-    if (item) {
-      toast.success(
-        `${item.medicine.name} removed from cart`
-      );
-    }
+    toast.success("Medicine removed from cart");
   };
 
+  // Clear cart
   const clearCart = () => {
-    if (cart.length === 0) {
-      return;
-    }
-
     setCart([]);
     setDiscount(0);
-
-    toast.success("Cart cleared");
+    setAmountReceived(0);
   };
 
+  // Item total
   const getItemTotal = (item: CartItem) => {
-    return (
-      item.quantity * item.medicine.sellingPrice
-    );
+    return item.quantity * item.medicine.sellingPrice;
   };
 
+  // Subtotal
   const subtotal = useMemo(() => {
     return cart.reduce(
-      (total, item) => total + getItemTotal(item),
+      (sum, item) => sum + getItemTotal(item),
       0
     );
   }, [cart]);
 
+  // Cart item count
   const cartItemCount = useMemo(() => {
     return cart.reduce(
-      (total, item) => total + item.quantity,
+      (sum, item) => sum + item.quantity,
       0
     );
   }, [cart]);
 
+  // Discount
   const handleDiscountChange = (
     value: string
   ) => {
@@ -314,40 +271,37 @@ export default function SalesPage() {
       return;
     }
 
-    const safeDiscount = Math.max(
-      0,
-      Math.min(numericValue, subtotal)
+    const safeDiscount = Math.min(
+      Math.max(numericValue, 0),
+      subtotal
     );
 
     setDiscount(safeDiscount);
   };
 
+  // Net amount before tax
   const netBeforeTax = Math.max(
     0,
     subtotal - discount
   );
 
-  /*
-   * Discount is distributed proportionally across
-   * cart items before calculating each item's GST.
-   *
-   * Example:
-   * Subtotal = ₹100
-   * Discount = ₹10
-   * Taxable amount = ₹90
-   *
-   * Each item's taxable value is reduced
-   * proportionally and then its own taxRate
-   * is applied.
-   */
+  // Tax calculation
   const cartTaxDetails = useMemo(() => {
+    if (subtotal <= 0) {
+      return cart.map((item) => ({
+        medicineId: item.medicine._id,
+        itemSubtotal: 0,
+        discountShare: 0,
+        taxableAmount: 0,
+        taxAmount: 0,
+      }));
+    }
+
     return cart.map((item) => {
       const itemSubtotal = getItemTotal(item);
 
       const discountShare =
-        subtotal > 0
-          ? (itemSubtotal / subtotal) * discount
-          : 0;
+        (itemSubtotal / subtotal) * discount;
 
       const taxableAmount = Math.max(
         0,
@@ -362,577 +316,701 @@ export default function SalesPage() {
         itemSubtotal,
         discountShare,
         taxableAmount,
-        taxRate: item.medicine.taxRate,
         taxAmount,
       };
     });
   }, [cart, subtotal, discount]);
 
+  // Total tax
   const totalTax = useMemo(() => {
     return cartTaxDetails.reduce(
-      (total, item) => total + item.taxAmount,
+      (sum, item) => sum + item.taxAmount,
       0
     );
   }, [cartTaxDetails]);
 
-  const grandTotal = Math.max(
+  // Grand total
+  const grandTotal = useMemo(() => {
+    return netBeforeTax + totalTax;
+  }, [netBeforeTax, totalTax]);
+
+  // CASH payment status
+  const paymentStatus = useMemo(() => {
+    if (amountReceived >= grandTotal && grandTotal > 0) {
+      return "PAID";
+    }
+
+    if (amountReceived > 0) {
+      return "PARTIAL";
+    }
+
+    return "PENDING";
+  }, [amountReceived, grandTotal]);
+
+  // Amount due
+  const amountDue = Math.max(
     0,
-    netBeforeTax + totalTax
+    grandTotal - amountReceived
   );
 
+  // Change due
+  const changeDue = Math.max(
+    0,
+    amountReceived - grandTotal
+  );
+
+  // Amount received change
+  const handleAmountReceivedChange = (
+    value: string
+  ) => {
+    const numericValue = Number(value);
+
+    if (Number.isNaN(numericValue)) {
+      setAmountReceived(0);
+      return;
+    }
+
+    setAmountReceived(
+      Math.max(0, numericValue)
+    );
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="mx-auto max-w-7xl">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">
-            Sales / POS
-          </h1>
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">
+          New Sale
+        </h1>
 
-          <p className="mt-1 text-sm text-gray-500">
-            Create a new bill and add medicines to the
-            cart.
-          </p>
-        </div>
+        <p className="mt-1 text-sm text-gray-500">
+          Search medicines and create a new bill
+        </p>
+      </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* LEFT SIDE */}
+        <div className="space-y-6 lg:col-span-2">
           {/* Medicine Search */}
-          <div className="lg:col-span-2">
-            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <div className="mb-4">
+          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Medicine Search
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-500">
+                Search by medicine name, generic name,
+                company, rack or shelf.
+              </p>
+            </div>
+
+            <input
+              type="text"
+              value={search}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
+              placeholder="Search medicine..."
+              className="mb-4 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-black"
+            />
+
+            {loading ? (
+              <div className="py-8 text-center text-sm text-gray-500">
+                Loading medicines...
+              </div>
+            ) : error ? (
+              <div className="py-8 text-center text-sm text-red-600">
+                {error}
+              </div>
+            ) : filteredMedicines.length === 0 ? (
+              <div className="py-8 text-center text-sm text-gray-500">
+                No medicines found
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 text-xs uppercase tracking-wide text-gray-500">
+                      <th className="px-3 py-3">
+                        Medicine
+                      </th>
+
+                      <th className="px-3 py-3">
+                        Company
+                      </th>
+
+                      <th className="px-3 py-3">
+                        Rack / Shelf
+                      </th>
+
+                      <th className="px-3 py-3">
+                        Price
+                      </th>
+
+                      <th className="px-3 py-3 text-right">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {filteredMedicines.map(
+                      (medicine) => (
+                        <tr
+                          key={medicine._id}
+                          className="border-b border-gray-100 last:border-0"
+                        >
+                          <td className="px-3 py-3">
+                            <div className="font-medium text-gray-900">
+                              {medicine.name}
+                            </div>
+
+                            {medicine.genericName && (
+                              <div className="text-xs text-gray-500">
+                                {medicine.genericName}
+                              </div>
+                            )}
+
+                            {medicine.strength && (
+                              <div className="text-xs text-gray-400">
+                                {medicine.strength}
+                              </div>
+                            )}
+                          </td>
+
+                          <td className="px-3 py-3 text-gray-600">
+                            {medicine.company || "-"}
+                          </td>
+
+                          <td className="px-3 py-3 text-gray-600">
+                            {racksLoading
+                              ? "..."
+                              : getRackDisplay(
+                                  medicine.rack
+                                )}
+
+                            {medicine.shelf && (
+                              <div className="text-xs text-gray-400">
+                                {medicine.shelf}
+                              </div>
+                            )}
+                          </td>
+
+                          <td className="px-3 py-3 font-medium text-gray-900">
+                            ₹
+                            {medicine.sellingPrice.toFixed(
+                              2
+                            )}
+                          </td>
+
+                          <td className="px-3 py-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleSelectMedicine(
+                                  medicine
+                                )
+                              }
+                              className="rounded-lg bg-black px-3 py-2 text-xs font-medium text-white hover:bg-gray-800"
+                            >
+                              Select
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Cart */}
+          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
                 <h2 className="text-lg font-semibold text-gray-900">
-                  Medicine Search
+                  Cart
                 </h2>
 
                 <p className="mt-1 text-sm text-gray-500">
-                  Search by medicine name, generic name,
-                  company, strength, rack or shelf.
+                  {cartItemCount} item
+                  {cartItemCount !== 1 ? "s" : ""}
                 </p>
               </div>
 
-              <div className="mb-5">
-                <input
-                  type="text"
-                  placeholder="Search medicine..."
-                  value={search}
-                  onChange={(e) =>
-                    setSearch(e.target.value)
-                  }
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-black focus:ring-2 focus:ring-gray-200"
-                />
-              </div>
-
-              {loading ? (
-                <div className="rounded-lg border border-gray-200 p-8 text-center">
-                  <p className="text-sm text-gray-500">
-                    Loading medicines...
-                  </p>
-                </div>
-              ) : error ? (
-                <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                  {error}
-                </div>
-              ) : !search.trim() ? (
-                <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center">
-                  <p className="text-sm text-gray-500">
-                    Start typing to search for a medicine.
-                  </p>
-                </div>
-              ) : filteredMedicines.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center">
-                  <p className="text-sm font-medium text-gray-700">
-                    No medicines found
-                  </p>
-
-                  <p className="mt-1 text-xs text-gray-500">
-                    Try another medicine name or search
-                    term.
-                  </p>
-                </div>
-              ) : (
-                <div className="overflow-hidden rounded-lg border border-gray-200">
-                  <div className="max-h-[520px] overflow-y-auto">
-                    <table className="min-w-full text-sm">
-                      <thead className="sticky top-0 border-b border-gray-200 bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-3 text-left font-semibold text-gray-700">
-                            Medicine
-                          </th>
-
-                          <th className="px-4 py-3 text-left font-semibold text-gray-700">
-                            Company
-                          </th>
-
-                          <th className="px-4 py-3 text-right font-semibold text-gray-700">
-                            Selling
-                          </th>
-
-                          <th className="px-4 py-3 text-center font-semibold text-gray-700">
-                            Action
-                          </th>
-                        </tr>
-                      </thead>
-
-                      <tbody className="divide-y divide-gray-100">
-                        {filteredMedicines.map(
-                          (medicine) => (
-                            <tr
-                              key={medicine._id}
-                              className={`transition hover:bg-gray-50 ${
-                                selectedMedicine?._id ===
-                                medicine._id
-                                  ? "bg-gray-50"
-                                  : ""
-                              }`}
-                            >
-                              <td className="px-4 py-4">
-                                <div>
-                                  <p className="font-semibold text-gray-900">
-                                    {medicine.name}
-                                  </p>
-
-                                  {medicine.genericName && (
-                                    <p className="mt-0.5 text-xs text-gray-500">
-                                      {
-                                        medicine.genericName
-                                      }
-                                    </p>
-                                  )}
-
-                                  {medicine.strength && (
-                                    <p className="mt-0.5 text-xs text-gray-400">
-                                      {medicine.strength}
-                                    </p>
-                                  )}
-                                </div>
-                              </td>
-
-                              <td className="px-4 py-4 text-gray-600">
-                                {medicine.company || "-"}
-                              </td>
-
-                              <td className="px-4 py-4 text-right font-medium text-gray-900">
-                                ₹
-                                {medicine.sellingPrice.toFixed(
-                                  2
-                                )}
-                              </td>
-
-                              <td className="px-4 py-4 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleSelectMedicine(
-                                      medicine
-                                    )
-                                  }
-                                  className="rounded-md bg-black px-3 py-1.5 text-xs font-medium text-white transition hover:bg-gray-800"
-                                >
-                                  Select
-                                </button>
-                              </td>
-                            </tr>
-                          )
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+              {cart.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clearCart}
+                  className="rounded-lg bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700"
+                >
+                  Clear Cart
+                </button>
               )}
             </div>
 
-            {/* Cart */}
-            <div className="mt-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <div className="mb-5 flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    Cart
-                  </h2>
+            {cart.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-gray-300 py-10 text-center">
+                <p className="text-sm text-gray-500">
+                  Cart is empty
+                </p>
 
-                  <p className="mt-1 text-sm text-gray-500">
-                    {cartItemCount} item
-                    {cartItemCount !== 1 ? "s" : ""} in
-                    cart
-                  </p>
-                </div>
-
-                {cart.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={clearCart}
-                    className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
-                  >
-                    Clear Cart
-                  </button>
-                )}
+                <p className="mt-1 text-xs text-gray-400">
+                  Select a medicine and add it to cart
+                </p>
               </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200 text-xs uppercase tracking-wide text-gray-500">
+                        <th className="px-3 py-3">
+                          Medicine
+                        </th>
 
-              {cart.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-gray-300 p-10 text-center">
-                  <p className="text-sm font-medium text-gray-700">
-                    Cart is empty
-                  </p>
+                        <th className="px-3 py-3">
+                          Qty
+                        </th>
 
-                  <p className="mt-1 text-xs text-gray-500">
-                    Search and select a medicine to add it
-                    to the cart.
-                  </p>
-                </div>
-              ) : (
-                <div className="overflow-hidden rounded-lg border border-gray-200">
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                      <thead className="border-b border-gray-200 bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-3 text-left font-semibold text-gray-700">
-                            Medicine
-                          </th>
+                        <th className="px-3 py-3">
+                          Rate
+                        </th>
 
-                          <th className="px-4 py-3 text-center font-semibold text-gray-700">
-                            Qty
-                          </th>
+                        <th className="px-3 py-3">
+                          Tax
+                        </th>
 
-                          <th className="px-4 py-3 text-right font-semibold text-gray-700">
-                            Rate
-                          </th>
+                        <th className="px-3 py-3">
+                          Total
+                        </th>
 
-                          <th className="px-4 py-3 text-right font-semibold text-gray-700">
-                            Tax
-                          </th>
+                        <th className="px-3 py-3 text-right">
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
 
-                          <th className="px-4 py-3 text-right font-semibold text-gray-700">
-                            Total
-                          </th>
+                    <tbody>
+                      {cart.map((item) => (
+                        <tr
+                          key={item.medicine._id}
+                          className="border-b border-gray-100 last:border-0"
+                        >
+                          <td className="px-3 py-3">
+                            <div className="font-medium text-gray-900">
+                              {item.medicine.name}
+                            </div>
 
-                          <th className="px-4 py-3 text-center font-semibold text-gray-700">
-                            Action
-                          </th>
-                        </tr>
-                      </thead>
-
-                      <tbody className="divide-y divide-gray-100">
-                        {cart.map((item) => (
-                          <tr
-                            key={item.medicine._id}
-                            className="hover:bg-gray-50"
-                          >
-                            <td className="px-4 py-4">
-                              <div>
-                                <p className="font-semibold text-gray-900">
-                                  {item.medicine.name}
-                                </p>
-
-                                {item.medicine.genericName && (
-                                  <p className="mt-0.5 text-xs text-gray-500">
-                                    {
-                                      item.medicine
-                                        .genericName
-                                    }
-                                  </p>
-                                )}
-
-                                {item.medicine.strength && (
-                                  <p className="mt-0.5 text-xs text-gray-400">
-                                    {
-                                      item.medicine
-                                        .strength
-                                    }
-                                  </p>
-                                )}
+                            {item.medicine.strength && (
+                              <div className="text-xs text-gray-500">
+                                {item.medicine.strength}
                               </div>
-                            </td>
+                            )}
+                          </td>
 
-                            <td className="px-4 py-4">
-                              <div className="flex items-center justify-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    decreaseQuantity(
-                                      item.medicine._id
-                                    )
-                                  }
-                                  className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 text-sm font-semibold text-gray-700 transition hover:bg-gray-100"
-                                >
-                                  −
-                                </button>
-
-                                <span className="w-8 text-center font-semibold text-gray-900">
-                                  {item.quantity}
-                                </span>
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    increaseQuantity(
-                                      item.medicine._id
-                                    )
-                                  }
-                                  className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 text-sm font-semibold text-gray-700 transition hover:bg-gray-100"
-                                >
-                                  +
-                                </button>
-                              </div>
-                            </td>
-
-                            <td className="px-4 py-4 text-right text-gray-700">
-                              ₹
-                              {item.medicine.sellingPrice.toFixed(
-                                2
-                              )}
-                            </td>
-
-                            <td className="px-4 py-4 text-right text-gray-600">
-                              {item.medicine.taxRate}%
-                            </td>
-
-                            <td className="px-4 py-4 text-right font-semibold text-gray-900">
-                              ₹
-                              {getItemTotal(
-                                item
-                              ).toFixed(2)}
-                            </td>
-
-                            <td className="px-4 py-4 text-center">
+                          <td className="px-3 py-3">
+                            <div className="flex items-center gap-2">
                               <button
                                 type="button"
                                 onClick={() =>
-                                  removeFromCart(
+                                  decreaseQuantity(
                                     item.medicine._id
                                   )
                                 }
-                                className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-red-700"
+                                className="flex h-7 w-7 items-center justify-center rounded border border-gray-300 text-sm hover:bg-gray-100"
                               >
-                                Remove
+                                −
                               </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+
+                              <span className="min-w-6 text-center font-medium">
+                                {item.quantity}
+                              </span>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  increaseQuantity(
+                                    item.medicine._id
+                                  )
+                                }
+                                className="flex h-7 w-7 items-center justify-center rounded border border-gray-300 text-sm hover:bg-gray-100"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </td>
+
+                          <td className="px-3 py-3 text-gray-600">
+                            ₹
+                            {item.medicine.sellingPrice.toFixed(
+                              2
+                            )}
+                          </td>
+
+                          <td className="px-3 py-3 text-gray-600">
+                            {item.medicine.taxRate}%
+                          </td>
+
+                          <td className="px-3 py-3 font-medium text-gray-900">
+                            ₹
+                            {getItemTotal(item).toFixed(
+                              2
+                            )}
+                          </td>
+
+                          <td className="px-3 py-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                removeFromCart(
+                                  item.medicine._id
+                                )
+                              }
+                              className="rounded-lg bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700"
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Bill Summary */}
+                <div className="mt-6 ml-auto max-w-sm space-y-3 border-t border-gray-200 pt-5">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">
+                      Subtotal
+                    </span>
+
+                    <span className="font-medium text-gray-900">
+                      ₹{subtotal.toFixed(2)}
+                    </span>
                   </div>
 
-                  {/* Bill Summary */}
-                  <div className="border-t border-gray-200 bg-gray-50 p-5">
-                    <div className="ml-auto max-w-sm space-y-3">
-                      {/* Subtotal */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">
-                          Subtotal
-                        </span>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500">
+                      Discount
+                    </span>
 
-                        <span className="text-sm font-semibold text-gray-900">
-                          ₹{subtotal.toFixed(2)}
-                        </span>
-                      </div>
+                    <div className="flex items-center">
+                      <span className="mr-1 text-gray-500">
+                        ₹
+                      </span>
 
-                      {/* Discount */}
-                      <div className="flex items-center justify-between gap-4">
-                        <label
-                          htmlFor="discount"
-                          className="text-sm font-medium text-gray-600"
-                        >
-                          Discount
-                        </label>
-
-                        <div className="relative w-36">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
-                            ₹
-                          </span>
-
-                          <input
-                            id="discount"
-                            type="number"
-                            min="0"
-                            max={subtotal}
-                            step="0.01"
-                            value={discount}
-                            onChange={(e) =>
-                              handleDiscountChange(
-                                e.target.value
-                              )
-                            }
-                            className="w-full rounded-md border border-gray-300 bg-white py-2 pl-7 pr-3 text-right text-sm outline-none transition focus:border-black focus:ring-2 focus:ring-gray-200"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Taxable Amount */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">
-                          Taxable Amount
-                        </span>
-
-                        <span className="text-sm font-semibold text-gray-900">
-                          ₹{netBeforeTax.toFixed(2)}
-                        </span>
-                      </div>
-
-                      {/* GST */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">
-                          GST / Tax
-                        </span>
-
-                        <span className="text-sm font-semibold text-gray-900">
-                          ₹{totalTax.toFixed(2)}
-                        </span>
-                      </div>
-
-                      {/* Grand Total */}
-                      <div className="border-t border-gray-300 pt-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-base font-semibold text-gray-900">
-                            Grand Total
-                          </span>
-
-                          <span className="text-xl font-bold text-gray-900">
-                            ₹{grandTotal.toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
+                      <input
+                        type="number"
+                        min="0"
+                        max={subtotal}
+                        step="0.01"
+                        value={discount}
+                        onChange={(e) =>
+                          handleDiscountChange(
+                            e.target.value
+                          )
+                        }
+                        className="w-24 rounded-lg border border-gray-300 px-2 py-1.5 text-right text-sm outline-none focus:border-black"
+                      />
                     </div>
                   </div>
+
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">
+                      Taxable Amount
+                    </span>
+
+                    <span className="font-medium text-gray-900">
+                      ₹{netBeforeTax.toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">
+                      GST / Tax
+                    </span>
+
+                    <span className="font-medium text-gray-900">
+                      ₹{totalTax.toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between border-t border-gray-200 pt-3">
+                    <span className="font-semibold text-gray-900">
+                      Grand Total
+                    </span>
+
+                    <span className="text-lg font-bold text-gray-900">
+                      ₹{grandTotal.toFixed(2)}
+                    </span>
+                  </div>
                 </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
+        </div>
 
+        {/* RIGHT SIDE */}
+        <div className="space-y-6">
           {/* Selected Medicine */}
-          <div>
-            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Selected Medicine
-                </h2>
+          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Selected Medicine
+            </h2>
 
-                <p className="mt-1 text-sm text-gray-500">
-                  Review the medicine before adding it to
-                  the cart.
+            {!selectedMedicine ? (
+              <div className="mt-6 rounded-lg border border-dashed border-gray-300 py-10 text-center">
+                <p className="text-sm text-gray-500">
+                  No medicine selected
+                </p>
+
+                <p className="mt-1 text-xs text-gray-400">
+                  Select a medicine from the search list
                 </p>
               </div>
+            ) : (
+              <div className="mt-5 space-y-4">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">
+                    {selectedMedicine.name}
+                  </h3>
 
-              {!selectedMedicine ? (
-                <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center">
-                  <p className="text-sm text-gray-500">
-                    No medicine selected.
-                  </p>
+                  {selectedMedicine.genericName && (
+                    <p className="text-sm text-gray-500">
+                      {selectedMedicine.genericName}
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-lg bg-gray-50 p-3">
+                    <div className="text-xs text-gray-500">
+                      Company
+                    </div>
+
+                    <div className="mt-1 font-medium text-gray-900">
+                      {selectedMedicine.company || "-"}
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg bg-gray-50 p-3">
+                    <div className="text-xs text-gray-500">
+                      Strength
+                    </div>
+
+                    <div className="mt-1 font-medium text-gray-900">
+                      {selectedMedicine.strength || "-"}
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg bg-gray-50 p-3">
+                    <div className="text-xs text-gray-500">
+                      Rack
+                    </div>
+
+                    <div className="mt-1 font-medium text-gray-900">
+                      {racksLoading
+                        ? "..."
+                        : getRackDisplay(
+                            selectedMedicine.rack
+                          )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg bg-gray-50 p-3">
+                    <div className="text-xs text-gray-500">
+                      Shelf
+                    </div>
+
+                    <div className="mt-1 font-medium text-gray-900">
+                      {selectedMedicine.shelf || "-"}
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg bg-gray-50 p-3">
+                    <div className="text-xs text-gray-500">
+                      Selling Price
+                    </div>
+
+                    <div className="mt-1 font-medium text-gray-900">
+                      ₹
+                      {selectedMedicine.sellingPrice.toFixed(
+                        2
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg bg-gray-50 p-3">
+                    <div className="text-xs text-gray-500">
+                      Tax Rate
+                    </div>
+
+                    <div className="mt-1 font-medium text-gray-900">
+                      {selectedMedicine.taxRate}%
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Quantity
+                  </label>
+
+                  <input
+                    type="number"
+                    min="1"
+                    value={quantity}
+                    onChange={(e) =>
+                      setQuantity(
+                        Math.max(
+                          1,
+                          Number(e.target.value) || 1
+                        )
+                      )
+                    }
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-black"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAddToCart}
+                  className="w-full rounded-lg bg-black px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-800"
+                >
+                  Add to Cart
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Payment - Step 7.6 */}
+          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="mb-5">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Payment
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-500">
+                Current payment method is CASH only.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {/* Payment Method */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Payment Method
+                </label>
+
+                <div className="flex items-center justify-between rounded-lg border border-gray-300 bg-gray-50 px-4 py-3">
+                  <span className="text-sm font-medium text-gray-900">
+                    CASH
+                  </span>
+
+                  <span className="rounded-full bg-black px-3 py-1 text-xs font-medium text-white">
+                    Active
+                  </span>
+                </div>
+              </div>
+
+              {/* Amount Payable */}
+              <div className="rounded-lg bg-gray-50 p-4">
+                <div className="text-xs text-gray-500">
+                  Amount Payable
+                </div>
+
+                <div className="mt-1 text-2xl font-bold text-gray-900">
+                  ₹{grandTotal.toFixed(2)}
+                </div>
+              </div>
+
+              {/* Amount Received */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Amount Received
+                </label>
+
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
+                    ₹
+                  </span>
+
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={amountReceived}
+                    onChange={(e) =>
+                      handleAmountReceivedChange(
+                        e.target.value
+                      )
+                    }
+                    placeholder="Enter cash received"
+                    className="w-full rounded-lg border border-gray-300 py-2.5 pl-8 pr-3 text-sm outline-none focus:border-black"
+                  />
+                </div>
+              </div>
+
+              {/* Payment Status */}
+              <div className="flex items-center justify-between border-t border-gray-200 pt-4">
+                <span className="text-sm text-gray-500">
+                  Payment Status
+                </span>
+
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    paymentStatus === "PAID"
+                      ? "bg-green-100 text-green-700"
+                      : paymentStatus === "PARTIAL"
+                      ? "bg-yellow-100 text-yellow-700"
+                      : "bg-gray-100 text-gray-600"
+                  }`}
+                >
+                  {paymentStatus}
+                </span>
+              </div>
+
+              {/* Due / Change */}
+              {amountReceived < grandTotal &&
+              grandTotal > 0 ? (
+                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+                  <div className="text-xs text-yellow-700">
+                    Amount Due
+                  </div>
+
+                  <div className="mt-1 text-xl font-bold text-yellow-800">
+                    ₹{amountDue.toFixed(2)}
+                  </div>
+                </div>
+              ) : grandTotal > 0 ? (
+                <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+                  <div className="text-xs text-green-700">
+                    Change Due
+                  </div>
+
+                  <div className="mt-1 text-xl font-bold text-green-800">
+                    ₹{changeDue.toFixed(2)}
+                  </div>
                 </div>
               ) : (
-                <div className="space-y-5">
-                  <div>
-                    <p className="text-lg font-bold text-gray-900">
-                      {selectedMedicine.name}
-                    </p>
-
-                    {selectedMedicine.genericName && (
-                      <p className="mt-1 text-sm text-gray-500">
-                        {selectedMedicine.genericName}
-                      </p>
-                    )}
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <div className="text-sm text-gray-500">
+                    Add medicines to cart to calculate
+                    payment.
                   </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-lg border border-gray-200 p-3">
-                      <p className="text-xs text-gray-500">
-                        Company
-                      </p>
-
-                      <p className="mt-1 text-sm font-medium text-gray-900">
-                        {selectedMedicine.company || "-"}
-                      </p>
-                    </div>
-
-                    <div className="rounded-lg border border-gray-200 p-3">
-                      <p className="text-xs text-gray-500">
-                        Strength
-                      </p>
-
-                      <p className="mt-1 text-sm font-medium text-gray-900">
-                        {selectedMedicine.strength || "-"}
-                      </p>
-                    </div>
-
-                    <div className="rounded-lg border border-gray-200 p-3">
-                      <p className="text-xs text-gray-500">
-                        Rack
-                      </p>
-
-                      <p className="mt-1 text-sm font-medium text-gray-900">
-                        {racksLoading
-                          ? "Loading..."
-                          : getRackDisplay(
-                              selectedMedicine.rack
-                            )}
-                      </p>
-                    </div>
-
-                    <div className="rounded-lg border border-gray-200 p-3">
-                      <p className="text-xs text-gray-500">
-                        Shelf
-                      </p>
-
-                      <p className="mt-1 text-sm font-medium text-gray-900">
-                        {selectedMedicine.shelf || "-"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">
-                        Selling Price
-                      </span>
-
-                      <span className="text-lg font-bold text-gray-900">
-                        ₹
-                        {selectedMedicine.sellingPrice.toFixed(
-                          2
-                        )}
-                      </span>
-                    </div>
-
-                    <div className="mt-2 flex items-center justify-between">
-                      <span className="text-sm text-gray-600">
-                        Tax Rate
-                      </span>
-
-                      <span className="text-sm font-medium text-gray-900">
-                        {selectedMedicine.taxRate}%
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Quantity */}
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700">
-                      Quantity
-                    </label>
-
-                    <input
-                      type="number"
-                      min="1"
-                      value={quantity}
-                      onChange={(e) =>
-                        setQuantity(
-                          Math.max(
-                            1,
-                            Number(e.target.value) || 1
-                          )
-                        )
-                      }
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm outline-none transition focus:border-black focus:ring-2 focus:ring-gray-200"
-                    />
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleAddToCart}
-                    className="w-full rounded-lg bg-black px-4 py-3 text-sm font-medium text-white transition hover:bg-gray-800"
-                  >
-                    + Add to Cart
-                  </button>
                 </div>
               )}
+
+              {/* Step 7.7 will connect this */}
+              <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-3">
+                <p className="text-xs leading-5 text-gray-500">
+                  Sale completion and automatic stock
+                  deduction will be connected in the next
+                  step using FEFO.
+                </p>
+              </div>
             </div>
           </div>
         </div>
