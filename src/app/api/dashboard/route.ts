@@ -1,5 +1,7 @@
 
+
 import { NextResponse } from "next/server";
+
 import { connectDB } from "@/lib/mongodb";
 import Medicine from "@/models/Medicine";
 import MedicineBatch from "@/models/MedicineBatch";
@@ -11,13 +13,15 @@ export async function GET() {
     // --------------------------------
     // 1. Total active medicines
     // --------------------------------
+
     const totalMedicines = await Medicine.countDocuments({
       isActive: true,
     });
 
     // --------------------------------
-    // 2. Get medicines
+    // 2. Get active medicines
     // --------------------------------
+
     const medicines = await Medicine.find({
       isActive: true,
     })
@@ -27,6 +31,7 @@ export async function GET() {
     // --------------------------------
     // 3. Calculate current stock
     // --------------------------------
+
     const stockAggregation = await MedicineBatch.aggregate([
       {
         $match: {
@@ -51,28 +56,50 @@ export async function GET() {
     );
 
     // --------------------------------
-    // 4. Find low stock medicines
+    // 4. Calculate total stock
     // --------------------------------
-    const lowStockMedicines = medicines
-      .map((medicine) => {
-        const currentStock =
-          stockMap.get(medicine._id.toString()) ?? 0;
 
-        return {
-          _id: medicine._id,
-          name: medicine.name,
-          minimumStock: medicine.minimumStock,
-          currentStock,
-        };
-      })
-      .filter(
-        (medicine) =>
-          medicine.currentStock <= medicine.minimumStock
-      );
+    const totalStock = medicines.reduce((total, medicine) => {
+      const currentStock =
+        stockMap.get(medicine._id.toString()) ?? 0;
+
+      return total + currentStock;
+    }, 0);
 
     // --------------------------------
-    // 5. Expiry dates
+    // 5. Find low stock medicines
     // --------------------------------
+
+    const medicineStock = medicines.map((medicine) => {
+      const currentStock =
+        stockMap.get(medicine._id.toString()) ?? 0;
+
+      return {
+        _id: medicine._id,
+        name: medicine.name,
+        minimumStock: medicine.minimumStock,
+        currentStock,
+      };
+    });
+
+    const lowStockMedicines = medicineStock.filter(
+      (medicine) =>
+        medicine.currentStock > 0 &&
+        medicine.currentStock <= medicine.minimumStock
+    );
+
+    // --------------------------------
+    // 6. Find out of stock medicines
+    // --------------------------------
+
+    const outOfStockMedicines = medicineStock.filter(
+      (medicine) => medicine.currentStock === 0
+    );
+
+    // --------------------------------
+    // 7. Expiry dates
+    // --------------------------------
+
     const today = new Date();
 
     today.setHours(0, 0, 0, 0);
@@ -84,8 +111,9 @@ export async function GET() {
     );
 
     // --------------------------------
-    // 6. Expired batches
+    // 8. Expired batches
     // --------------------------------
+
     const expiredBatches = await MedicineBatch.find({
       isActive: true,
       expiryDate: {
@@ -100,8 +128,9 @@ export async function GET() {
       .lean();
 
     // --------------------------------
-    // 7. Near expiry batches
+    // 9. Near expiry batches
     // --------------------------------
+
     const nearExpiryBatches = await MedicineBatch.find({
       isActive: true,
       expiryDate: {
@@ -117,25 +146,30 @@ export async function GET() {
       .lean();
 
     // --------------------------------
-    // 8. Expiry count
+    // 10. Expiry counts
     // --------------------------------
+
     const expiredCount = expiredBatches.length;
+
     const nearExpiryCount = nearExpiryBatches.length;
 
     const expiryAlertCount =
       expiredCount + nearExpiryCount;
 
     // --------------------------------
-    // 9. Stock status
+    // 11. Stock status
     // --------------------------------
+
     const stockStatus =
-      lowStockMedicines.length === 0
+      lowStockMedicines.length === 0 &&
+      outOfStockMedicines.length === 0
         ? "Healthy"
         : "Needs Attention";
 
     // --------------------------------
-    // Response
+    // 12. Response
     // --------------------------------
+
     return NextResponse.json(
       {
         success: true,
@@ -143,10 +177,14 @@ export async function GET() {
         dashboard: {
           totalMedicines,
 
+          totalStock,
+
           stockStatus,
 
-          lowStockCount:
-            lowStockMedicines.length,
+          lowStockCount: lowStockMedicines.length,
+
+          outOfStockCount:
+            outOfStockMedicines.length,
 
           expiryAlertCount,
 
@@ -155,6 +193,8 @@ export async function GET() {
           nearExpiryCount,
 
           lowStockMedicines,
+
+          outOfStockMedicines,
 
           expiredBatches,
 
