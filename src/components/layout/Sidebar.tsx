@@ -3,6 +3,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Pill,
@@ -103,6 +104,23 @@ const menuSections = [
 ];
 
 export default function Sidebar() {
+  const pathname = usePathname();
+
+  const isActive = (href: string) => {
+    if (href === "#") {
+      return false;
+    }
+
+    if (href === "/dashboard") {
+      return pathname === "/dashboard";
+    }
+
+    return (
+      pathname === href ||
+      pathname.startsWith(`${href}/`)
+    );
+  };
+
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r bg-white">
       {/* Logo */}
@@ -139,14 +157,24 @@ export default function Sidebar() {
               <div className="space-y-1">
                 {section.items.map((item) => {
                   const Icon = item.icon;
+                  const active = isActive(item.href);
 
                   return (
                     <Link
                       key={item.label}
                       href={item.href}
-                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      aria-current={
+                        active ? "page" : undefined
+                      }
+                      className={[
+                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                        active
+                          ? "bg-black text-white"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      ].join(" ")}
                     >
                       <Icon className="h-4 w-4 shrink-0" />
+
                       <span>{item.label}</span>
                     </Link>
                   );
