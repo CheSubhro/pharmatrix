@@ -2,7 +2,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { connectDB } from "@/lib/mongodb";
+
 import MedicineBatch from "@/models/MedicineBatch";
+
 import Medicine from "@/models/Medicine";
 
 // GET /api/medicine-batches
@@ -11,8 +13,13 @@ export async function GET() {
   try {
     await connectDB();
 
-    const batches = await MedicineBatch.find({ isActive: true })
-      .populate("medicine", "name genericName company strength dosageForm")
+    const batches = await MedicineBatch.find({
+      isActive: true,
+    })
+      .populate(
+        "medicine",
+        "name genericName company strength dosageForm"
+      )
       .sort({ expiryDate: 1 })
       .lean();
 
@@ -24,7 +31,10 @@ export async function GET() {
       { status: 200 }
     );
   } catch (error) {
-    console.error("GET /api/medicine-batches error:", error);
+    console.error(
+      "GET /api/medicine-batches error:",
+      error
+    );
 
     return NextResponse.json(
       {
@@ -38,7 +48,9 @@ export async function GET() {
 
 // POST /api/medicine-batches
 // Create a new medicine batch
-export async function POST(request: NextRequest) {
+export async function POST(
+  request: NextRequest
+) {
   try {
     await connectDB();
 
@@ -53,24 +65,56 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Required field validation
+    if (!medicine) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Medicine is required",
+        },
+        { status: 400 }
+      );
+    }
+
     if (
-      !medicine ||
       !batchNumber ||
-      !expiryDate ||
-      initialStock === undefined
+      typeof batchNumber !== "string" ||
+      batchNumber.trim() === ""
     ) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Medicine, batch number, expiry date and initial stock are required",
+          message: "Batch number is required",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!expiryDate) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Expiry date is required",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (initialStock === undefined || initialStock === null) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Initial stock is required",
         },
         { status: 400 }
       );
     }
 
     // Check whether medicine exists
-    const existingMedicine = await Medicine.findById(medicine);
+    const existingMedicine =
+      await Medicine.findOne({
+        _id: medicine,
+        isActive: true,
+      });
 
     if (!existingMedicine) {
       return NextResponse.json(
@@ -83,7 +127,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate stock
-    if (Number(initialStock) < 0) {
+    const stock = Number(initialStock);
+
+    if (!Number.isFinite(stock)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Initial stock must be a valid number",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (stock < 0) {
       return NextResponse.json(
         {
           success: false,
@@ -93,18 +149,74 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate expiry date
+    const expiry = new Date(expiryDate);
+
+    if (Number.isNaN(expiry.getTime())) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid expiry date",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate manufacturing date if provided
+    let manufacturing: Date | undefined;
+
+    if (manufacturingDate) {
+      manufacturing = new Date(
+        manufacturingDate
+      );
+
+      if (
+        Number.isNaN(manufacturing.getTime())
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Invalid manufacturing date",
+          },
+          { status: 400 }
+        );
+      }
+
+      if (manufacturing > expiry) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Manufacturing date cannot be after expiry date",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // Check duplicate batch for the same medicine
-    const existingBatch = await MedicineBatch.findOne({
-      medicine,
-      batchNumber: batchNumber.trim(),
-      isActive: true,
-    });
+    const normalizedBatchNumber =
+      batchNumber.trim();
+
+    const existingBatch =
+      await MedicineBatch.findOne({
+        medicine,
+        batchNumber: {
+          $regex: `^${normalizedBatchNumber.replace(
+            /[.*+?^${}()|[\]\\]/g,
+            "\\$&"
+          )}$`,
+          $options: "i",
+        },
+        isActive: true,
+      });
 
     if (existingBatch) {
       return NextResponse.json(
         {
           success: false,
-          message: "This batch already exists for this medicine",
+          message:
+            "This batch already exists for this medicine",
         },
         { status: 409 }
       );
@@ -113,28 +225,39 @@ export async function POST(request: NextRequest) {
     // Create batch
     const batch = await MedicineBatch.create({
       medicine,
-      batchNumber: batchNumber.trim(),
-      manufacturingDate: manufacturingDate || undefined,
-      expiryDate,
-      initialStock: Number(initialStock),
-      currentStock: Number(initialStock),
+      batchNumber: normalizedBatchNumber,
+      manufacturingDate: manufacturing,
+      expiryDate: expiry,
+      initialStock: stock,
+      currentStock: stock,
       isActive: true,
     });
 
-    const populatedBatch = await MedicineBatch.findById(batch._id)
-      .populate("medicine", "name genericName company strength dosageForm")
-      .lean();
+    // Return populated batch
+    const populatedBatch =
+      await MedicineBatch.findById(
+        batch._id
+      )
+        .populate(
+          "medicine",
+          "name genericName company strength dosageForm"
+        )
+        .lean();
 
     return NextResponse.json(
       {
         success: true,
-        message: "Medicine batch created successfully",
+        message:
+          "Medicine batch created successfully",
         batch: populatedBatch,
       },
       { status: 201 }
     );
   } catch (error) {
-    console.error("POST /api/medicine-batches error:", error);
+    console.error(
+      "POST /api/medicine-batches error:",
+      error
+    );
 
     return NextResponse.json(
       {
@@ -145,4 +268,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
