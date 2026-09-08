@@ -1,6 +1,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "@/lib/mongodb";
+import {connectDB} from "@/lib/mongodb";
 import MedicineBatch from "@/models/MedicineBatch";
 
 export async function GET(request: NextRequest) {
