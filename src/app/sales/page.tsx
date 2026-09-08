@@ -1,7 +1,9 @@
 
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 interface Medicine {
@@ -36,12 +38,16 @@ interface CartItem {
 }
 
 export default function SalesPage() {
+  const router = useRouter();
+
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [racks, setRacks] = useState<Rack[]>([]);
 
   const [search, setSearch] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [racksLoading, setRacksLoading] = useState(true);
+
   const [error, setError] = useState("");
 
   const [selectedMedicine, setSelectedMedicine] =
@@ -56,6 +62,9 @@ export default function SalesPage() {
   // Step 7.6 - CASH payment
   const [amountReceived, setAmountReceived] = useState(0);
 
+  // Step 7.7 - Complete Sale loading
+  const [completingSale, setCompletingSale] = useState(false);
+
   // Fetch medicines
   const fetchMedicines = async () => {
     try {
@@ -66,12 +75,15 @@ export default function SalesPage() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to fetch medicines");
+        throw new Error(
+          data.message || "Failed to fetch medicines"
+        );
       }
 
       setMedicines(data.medicines || []);
     } catch (err) {
       console.error(err);
+
       setError("Failed to load medicines");
       toast.error("Failed to load medicines");
     } finally {
@@ -88,12 +100,15 @@ export default function SalesPage() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to fetch racks");
+        throw new Error(
+          data.message || "Failed to fetch racks"
+        );
       }
 
       setRacks(data.racks || []);
     } catch (err) {
       console.error(err);
+
       toast.error("Failed to load racks");
     } finally {
       setRacksLoading(false);
@@ -107,9 +122,13 @@ export default function SalesPage() {
 
   // Rack display
   const getRackDisplay = (rackId?: string) => {
-    if (!rackId) return "-";
+    if (!rackId) {
+      return "-";
+    }
 
-    const rack = racks.find((item) => item._id === rackId);
+    const rack = racks.find(
+      (item) => item._id === rackId
+    );
 
     if (!rack) {
       return rackId;
@@ -145,7 +164,9 @@ export default function SalesPage() {
   }, [medicines, search]);
 
   // Select medicine
-  const handleSelectMedicine = (medicine: Medicine) => {
+  const handleSelectMedicine = (
+    medicine: Medicine
+  ) => {
     setSelectedMedicine(medicine);
     setQuantity(1);
   };
@@ -164,7 +185,8 @@ export default function SalesPage() {
 
     setCart((currentCart) => {
       const existingItem = currentCart.find(
-        (item) => item.medicine._id === selectedMedicine._id
+        (item) =>
+          item.medicine._id === selectedMedicine._id
       );
 
       if (existingItem) {
@@ -187,12 +209,17 @@ export default function SalesPage() {
       ];
     });
 
-    toast.success(`${selectedMedicine.name} added to cart`);
+    toast.success(
+      `${selectedMedicine.name} added to cart`
+    );
+
     setQuantity(1);
   };
 
   // Increase quantity
-  const increaseQuantity = (medicineId: string) => {
+  const increaseQuantity = (
+    medicineId: string
+  ) => {
     setCart((currentCart) =>
       currentCart.map((item) =>
         item.medicine._id === medicineId
@@ -206,7 +233,9 @@ export default function SalesPage() {
   };
 
   // Decrease quantity
-  const decreaseQuantity = (medicineId: string) => {
+  const decreaseQuantity = (
+    medicineId: string
+  ) => {
     setCart((currentCart) =>
       currentCart
         .map((item) =>
@@ -222,10 +251,13 @@ export default function SalesPage() {
   };
 
   // Remove item
-  const removeFromCart = (medicineId: string) => {
+  const removeFromCart = (
+    medicineId: string
+  ) => {
     setCart((currentCart) =>
       currentCart.filter(
-        (item) => item.medicine._id !== medicineId
+        (item) =>
+          item.medicine._id !== medicineId
       )
     );
 
@@ -241,13 +273,16 @@ export default function SalesPage() {
 
   // Item total
   const getItemTotal = (item: CartItem) => {
-    return item.quantity * item.medicine.sellingPrice;
+    return (
+      item.quantity * item.medicine.sellingPrice
+    );
   };
 
   // Subtotal
   const subtotal = useMemo(() => {
     return cart.reduce(
-      (sum, item) => sum + getItemTotal(item),
+      (sum, item) =>
+        sum + getItemTotal(item),
       0
     );
   }, [cart]);
@@ -255,7 +290,8 @@ export default function SalesPage() {
   // Cart item count
   const cartItemCount = useMemo(() => {
     return cart.reduce(
-      (sum, item) => sum + item.quantity,
+      (sum, item) =>
+        sum + item.quantity,
       0
     );
   }, [cart]);
@@ -298,10 +334,12 @@ export default function SalesPage() {
     }
 
     return cart.map((item) => {
-      const itemSubtotal = getItemTotal(item);
+      const itemSubtotal =
+        getItemTotal(item);
 
       const discountShare =
-        (itemSubtotal / subtotal) * discount;
+        (itemSubtotal / subtotal) *
+        discount;
 
       const taxableAmount = Math.max(
         0,
@@ -309,7 +347,9 @@ export default function SalesPage() {
       );
 
       const taxAmount =
-        (taxableAmount * item.medicine.taxRate) / 100;
+        (taxableAmount *
+          item.medicine.taxRate) /
+        100;
 
       return {
         medicineId: item.medicine._id,
@@ -324,7 +364,8 @@ export default function SalesPage() {
   // Total tax
   const totalTax = useMemo(() => {
     return cartTaxDetails.reduce(
-      (sum, item) => sum + item.taxAmount,
+      (sum, item) =>
+        sum + item.taxAmount,
       0
     );
   }, [cartTaxDetails]);
@@ -336,7 +377,10 @@ export default function SalesPage() {
 
   // CASH payment status
   const paymentStatus = useMemo(() => {
-    if (amountReceived >= grandTotal && grandTotal > 0) {
+    if (
+      amountReceived >= grandTotal &&
+      grandTotal > 0
+    ) {
       return "PAID";
     }
 
@@ -373,6 +417,106 @@ export default function SalesPage() {
     setAmountReceived(
       Math.max(0, numericValue)
     );
+  };
+
+  // Step 7.7 - Complete Sale
+  const handleCompleteSale = async () => {
+    if (cart.length === 0) {
+      toast.error("Cart is empty");
+      return;
+    }
+
+    if (grandTotal <= 0) {
+      toast.error("Invalid bill amount");
+      return;
+    }
+
+    if (amountReceived < grandTotal) {
+      toast.error(
+        `Payment incomplete. ₹${amountDue.toFixed(
+          2
+        )} still due.`
+      );
+      return;
+    }
+
+    try {
+      setCompletingSale(true);
+
+      const saleItems = cart.map((item) => {
+        const taxDetail =
+          cartTaxDetails.find(
+            (taxItem) =>
+              taxItem.medicineId ===
+              item.medicine._id
+          );
+
+        return {
+          medicine: item.medicine._id,
+          quantity: item.quantity,
+          sellingPrice:
+            item.medicine.sellingPrice,
+          taxRate: item.medicine.taxRate,
+          discount:
+            taxDetail?.discountShare || 0,
+          total: getItemTotal(item),
+        };
+      });
+
+      const response = await fetch(
+        "/api/sales",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            items: saleItems,
+            subtotal,
+            discount,
+            tax: totalTax,
+            grandTotal,
+            paymentMethod: "CASH",
+            paymentStatus: "PAID",
+            status: "COMPLETED",
+            saleDate:
+              new Date().toISOString(),
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (
+        !response.ok ||
+        !data.success
+      ) {
+        throw new Error(
+          data.message ||
+            "Failed to complete sale"
+        );
+      }
+
+      toast.success(
+        `Sale ${data.sale.billNumber} completed successfully`
+      );
+
+      // Step 7.8 - Open Bill View
+      router.push(
+        `/sales/${data.sale._id}`
+      );
+    } catch (error) {
+      console.error(error);
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to complete sale"
+      );
+    } finally {
+      setCompletingSale(false);
+    }
   };
 
   return (
@@ -535,7 +679,9 @@ export default function SalesPage() {
 
                 <p className="mt-1 text-sm text-gray-500">
                   {cartItemCount} item
-                  {cartItemCount !== 1 ? "s" : ""}
+                  {cartItemCount !== 1
+                    ? "s"
+                    : ""}
                 </p>
               </div>
 
@@ -655,9 +801,9 @@ export default function SalesPage() {
 
                           <td className="px-3 py-3 font-medium text-gray-900">
                             ₹
-                            {getItemTotal(item).toFixed(
-                              2
-                            )}
+                            {getItemTotal(
+                              item
+                            ).toFixed(2)}
                           </td>
 
                           <td className="px-3 py-3 text-right">
@@ -791,7 +937,8 @@ export default function SalesPage() {
                     </div>
 
                     <div className="mt-1 font-medium text-gray-900">
-                      {selectedMedicine.company || "-"}
+                      {selectedMedicine.company ||
+                        "-"}
                     </div>
                   </div>
 
@@ -801,7 +948,8 @@ export default function SalesPage() {
                     </div>
 
                     <div className="mt-1 font-medium text-gray-900">
-                      {selectedMedicine.strength || "-"}
+                      {selectedMedicine.strength ||
+                        "-"}
                     </div>
                   </div>
 
@@ -825,7 +973,8 @@ export default function SalesPage() {
                     </div>
 
                     <div className="mt-1 font-medium text-gray-900">
-                      {selectedMedicine.shelf || "-"}
+                      {selectedMedicine.shelf ||
+                        "-"}
                     </div>
                   </div>
 
@@ -866,7 +1015,9 @@ export default function SalesPage() {
                       setQuantity(
                         Math.max(
                           1,
-                          Number(e.target.value) || 1
+                          Number(
+                            e.target.value
+                          ) || 1
                         )
                       )
                     }
@@ -963,7 +1114,8 @@ export default function SalesPage() {
                   className={`rounded-full px-3 py-1 text-xs font-semibold ${
                     paymentStatus === "PAID"
                       ? "bg-green-100 text-green-700"
-                      : paymentStatus === "PARTIAL"
+                      : paymentStatus ===
+                        "PARTIAL"
                       ? "bg-yellow-100 text-yellow-700"
                       : "bg-gray-100 text-gray-600"
                   }`}
@@ -973,7 +1125,8 @@ export default function SalesPage() {
               </div>
 
               {/* Due / Change */}
-              {amountReceived < grandTotal &&
+              {amountReceived <
+                grandTotal &&
               grandTotal > 0 ? (
                 <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
                   <div className="text-xs text-yellow-700">
@@ -1003,14 +1156,27 @@ export default function SalesPage() {
                 </div>
               )}
 
-              {/* Step 7.7 will connect this */}
-              <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-3">
-                <p className="text-xs leading-5 text-gray-500">
-                  Sale completion and automatic stock
-                  deduction will be connected in the next
-                  step using FEFO.
-                </p>
-              </div>
+              {/* Step 7.7 - Complete Sale */}
+              <button
+                type="button"
+                onClick={handleCompleteSale}
+                disabled={
+                  completingSale ||
+                  cart.length === 0 ||
+                  grandTotal <= 0 ||
+                  amountReceived < grandTotal
+                }
+                className="w-full rounded-lg bg-black px-4 py-3 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
+              >
+                {completingSale
+                  ? "Completing Sale..."
+                  : "Complete Sale"}
+              </button>
+
+              <p className="text-center text-xs text-gray-400">
+                Stock will automatically decrease using
+                FEFO after completing the sale.
+              </p>
             </div>
           </div>
         </div>
