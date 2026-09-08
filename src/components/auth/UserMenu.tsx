@@ -1,8 +1,12 @@
 
+
 "use client";
 
-import { useState } from "react";
-import { signOut } from "next-auth/react";
+import { useEffect, useState } from "react";
+import {
+  getSession,
+  signOut,
+} from "next-auth/react";
 import {
   ChevronDown,
   LogOut,
@@ -19,6 +23,45 @@ export default function UserMenu({
   role,
 }: UserMenuProps) {
   const [open, setOpen] = useState(false);
+  const [sessionName, setSessionName] = useState<string | null>(
+    name ?? null,
+  );
+  const [sessionRole, setSessionRole] = useState<string | null>(
+    role ?? null,
+  );
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadSession() {
+      try {
+        const session = await getSession();
+
+        if (!mounted) return;
+
+        setSessionName(session?.user?.name ?? name ?? null);
+
+        const userWithRole = session?.user as
+          | { role?: string | null }
+          | undefined;
+
+        setSessionRole(
+          userWithRole?.role ?? role ?? null,
+        );
+      } catch (error) {
+        console.error(
+          "Failed to load user session:",
+          error,
+        );
+      }
+    }
+
+    loadSession();
+
+    return () => {
+      mounted = false;
+    };
+  }, [name, role]);
 
   async function handleLogout() {
     await signOut({
@@ -26,8 +69,8 @@ export default function UserMenu({
     });
   }
 
-  const displayName = name || "Admin";
-  const displayRole = role || "Administrator";
+  const displayName = sessionName || "Admin";
+  const displayRole = sessionRole || "Administrator";
 
   const initial = displayName
     .charAt(0)
@@ -35,7 +78,6 @@ export default function UserMenu({
 
   return (
     <div className="relative">
-      {/* User Button */}
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
@@ -43,12 +85,10 @@ export default function UserMenu({
         aria-expanded={open}
         aria-haspopup="menu"
       >
-        {/* Avatar */}
         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black text-xs font-semibold text-white">
           {initial}
         </div>
 
-        {/* User Info */}
         <div className="hidden text-left sm:block">
           <p className="max-w-[120px] truncate text-sm font-medium">
             {displayName}
@@ -67,13 +107,11 @@ export default function UserMenu({
         />
       </button>
 
-      {/* Dropdown */}
       {open && (
         <div
           className="absolute right-0 top-full z-50 mt-2 w-60 rounded-xl border bg-white p-2 shadow-lg"
           role="menu"
         >
-          {/* User Header */}
           <div className="flex items-center gap-3 rounded-lg px-3 py-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black text-sm font-semibold text-white">
               {initial}
@@ -92,7 +130,6 @@ export default function UserMenu({
 
           <div className="my-1 border-t" />
 
-          {/* Profile */}
           <button
             type="button"
             disabled
@@ -105,7 +142,6 @@ export default function UserMenu({
 
           <div className="my-1 border-t" />
 
-          {/* Logout */}
           <button
             type="button"
             onClick={handleLogout}
