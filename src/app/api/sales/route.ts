@@ -5,6 +5,8 @@ import { NextRequest, NextResponse } from "next/server";
 import {connectDB} from "@/lib/mongodb";
 import Sale from "@/models/Sale";
 import Medicine from "@/models/Medicine";
+import MedicineBatch from "@/models/MedicineBatch";
+import StockMovement from "@/models/StockMovement";
 
 // GET - Get all sales
 export async function GET() {
@@ -40,8 +42,16 @@ export async function GET() {
   }
 }
 
-// POST - Create a new sale
+// POST - Create sale and automatically decrease stock using FEFO
 export async function POST(request: NextRequest) {
+  const stockChanges: Array<{
+    batchId: string;
+    previousStock: number;
+    quantity: number;
+    medicineId: string;
+    movementId?: string;
+  }> = [];
+
   try {
     await connectDB();
 
@@ -63,7 +73,10 @@ export async function POST(request: NextRequest) {
       note,
     } = body;
 
+    // -----------------------------
     // Basic validation
+    // -----------------------------
+
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
         {
@@ -133,7 +146,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate bill number if not provided
+    // For completed sale, payment must be PAID.
+    if ((status || "DRAFT") === "COMPLETED") {
+      if ((paymentMethod || "CASH") !== "CASH") {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Only CASH payment is currently supported",
+          },
+          { status: 400 }
+        );
+      }
+
+      if ((paymentStatus || "PAID") !== "PAID") {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Payment must be PAID before completing sale",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // -----------------------------
+    // Generate bill number
+    // -----------------------------
+
     let finalBillNumber = billNumber?.trim();
 
     if (!finalBillNumber) {
@@ -155,8 +194,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate and prepare sale items
-    const preparedItems = [];
+    // -----------------------------
+    // Prepare sale items
+    // -----------------------------
+
+    const preparedItems: Array<{
+      medicine: any;
+      medicineName: string;
+      genericName?: string;
+      batch?: any;
+      batchNumber?: string;
+      quantity: number;
+      sellingPrice: number;
+      taxRate: number;
+      discount: number;
+      total: number;
+    }> = [];
 
     for (const item of items) {
       if (!item.medicine) {
@@ -222,8 +275,9 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Verify medicine exists
-      const medicine = await Medicine.findById(item.medicine).lean();
+      const medicine = await Medicine.findById(
+        item.medicine
+      ).lean();
 
       if (!medicine) {
         return NextResponse.json(
@@ -240,9 +294,6 @@ export async function POST(request: NextRequest) {
         medicineName: medicine.name,
         genericName: medicine.genericName,
 
-        batch: item.batch || undefined,
-        batchNumber: item.batchNumber?.trim() || undefined,
-
         quantity: Number(item.quantity),
         sellingPrice: Number(item.sellingPrice),
         taxRate: Number(item.taxRate),
@@ -250,6 +301,89 @@ export async function POST(request: NextRequest) {
         total: Number(item.total),
       });
     }
+
+    // -----------------------------
+    // Stock deduction using FEFO
+    // Only for COMPLETED sale
+    // -----------------------------
+
+    if ((status || "DRAFT") === "COMPLETED") {
+      for (const item of preparedItems) {
+        let remainingQuantity = item.quantity;
+
+        const batches = await MedicineBatch.find({
+          medicine: item.medicine,
+          isActive: true,
+          currentStock: { $gt: 0 },
+          expiryDate: { $gte: new Date() },
+        }).sort({
+          expiryDate: 1,
+          createdAt: 1,
+        });
+
+        const totalAvailableStock = batches.reduce(
+          (sum, batch) => sum + batch.currentStock,
+          0
+        );
+
+        if (totalAvailableStock < item.quantity) {
+          throw new Error(
+            `Insufficient stock for ${item.medicineName}. Available: ${totalAvailableStock}, Required: ${item.quantity}`
+          );
+        }
+
+        for (const batch of batches) {
+          if (remainingQuantity <= 0) {
+            break;
+          }
+
+          const quantityFromBatch = Math.min(
+            batch.currentStock,
+            remainingQuantity
+          );
+
+          const previousStock = batch.currentStock;
+
+          batch.currentStock =
+            batch.currentStock - quantityFromBatch;
+
+          await batch.save();
+
+          const movement = await StockMovement.create({
+            medicine: item.medicine,
+            batch: batch._id,
+            type: "OUT",
+            quantity: quantityFromBatch,
+            reason: "Sale",
+            reference: finalBillNumber,
+            note: `FEFO stock OUT from batch ${batch.batchNumber}`,
+            movementDate: saleDate
+              ? new Date(saleDate)
+              : new Date(),
+          });
+
+          stockChanges.push({
+            batchId: String(batch._id),
+            previousStock,
+            quantity: quantityFromBatch,
+            medicineId: String(item.medicine),
+            movementId: String(movement._id),
+          });
+
+          // First batch information is stored in sale item.
+          if (!item.batch) {
+            item.batch = batch._id;
+            item.batchNumber = batch.batchNumber;
+          }
+
+          remainingQuantity -= quantityFromBatch;
+        }
+      }
+    }
+
+    // -----------------------------
+    // Create sale
+    // -----------------------------
 
     const sale = await Sale.create({
       billNumber: finalBillNumber,
@@ -269,7 +403,9 @@ export async function POST(request: NextRequest) {
 
       status: status || "DRAFT",
 
-      saleDate: saleDate ? new Date(saleDate) : new Date(),
+      saleDate: saleDate
+        ? new Date(saleDate)
+        : new Date(),
 
       note: note?.trim() || undefined,
     });
@@ -277,18 +413,62 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        message: "Sale created successfully",
+        message:
+          (status || "DRAFT") === "COMPLETED"
+            ? "Sale completed and stock updated successfully"
+            : "Sale created successfully",
         sale,
+        stockUpdated:
+          (status || "DRAFT") === "COMPLETED",
       },
       { status: 201 }
     );
   } catch (error) {
     console.error("POST /api/sales error:", error);
 
+    // -----------------------------
+    // Rollback stock if sale failed
+    // -----------------------------
+
+    if (stockChanges.length > 0) {
+      try {
+        for (const change of stockChanges) {
+          await MedicineBatch.findByIdAndUpdate(
+            change.batchId,
+            {
+              $inc: {
+                currentStock: change.quantity,
+              },
+            }
+          );
+
+          if (change.movementId) {
+            await StockMovement.findByIdAndDelete(
+              change.movementId
+            );
+          }
+        }
+
+        console.log(
+          "Stock rollback completed after sale failure"
+        );
+      } catch (rollbackError) {
+        console.error(
+          "Stock rollback failed:",
+          rollbackError
+        );
+      }
+    }
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Failed to create sale";
+
     return NextResponse.json(
       {
         success: false,
-        message: "Failed to create sale",
+        message,
       },
       { status: 500 }
     );
