@@ -4,6 +4,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+
 import {
   LayoutDashboard,
   Pill,
@@ -14,6 +15,7 @@ import {
   AlertTriangle,
   RefreshCcw,
   ShoppingCart,
+  Receipt,
   Stethoscope,
   Users,
   Settings,
@@ -83,6 +85,21 @@ const menuSections = [
         label: "Purchases",
         href: "/purchases",
         icon: ShoppingCart,
+      },
+      {
+        label: "Suppliers",
+        href: "/suppliers",
+        icon: Package,
+      },
+    ],
+  },
+  {
+    title: "SALES",
+    items: [
+      {
+        label: "Sales / POS",
+        href: "/sales",
+        icon: Receipt,
       },
     ],
   },
@@ -223,7 +240,6 @@ export default function Sidebar({
             ))}
           </div>
         </nav>
-
       </aside>
     </>
   );
