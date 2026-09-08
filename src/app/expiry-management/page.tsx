@@ -52,6 +52,7 @@ interface Rack {
 
 export default function ExpiryManagementPage() {
   const [batches, setBatches] = useState<ExpiryBatch[]>([]);
+
   const [summary, setSummary] = useState<Summary>({
     totalBatches: 0,
     expiredCount: 0,
@@ -63,11 +64,16 @@ export default function ExpiryManagementPage() {
 
   const [racks, setRacks] = useState<Rack[]>([]);
   const [search, setSearch] = useState("");
+
   const [statusFilter, setStatusFilter] = useState<
     "ALL" | ExpiryStatus
   >("ALL");
 
   const [loading, setLoading] = useState(true);
+
+  const [removingBatchId, setRemovingBatchId] = useState<string | null>(
+    null
+  );
 
   const fetchData = async () => {
     try {
@@ -88,6 +94,7 @@ export default function ExpiryManagementPage() {
       }
 
       setBatches(expiryData.batches || []);
+
       setSummary(
         expiryData.summary || {
           totalBatches: 0,
@@ -118,6 +125,64 @@ export default function ExpiryManagementPage() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const removeExpiredStock = (batch: ExpiryBatch) => {
+    toast("Remove expired stock?", {
+      description:
+        `${batch.medicine?.name || "Medicine"} — ${batch.batchNumber}. ` +
+        `All ${batch.currentStock} remaining units will be removed from stock.`,
+
+      action: {
+        label: "Remove",
+
+        onClick: async () => {
+          try {
+            setRemovingBatchId(batch._id);
+
+            const response = await fetch(
+              `/api/expiry-management/${batch._id}/remove-stock`,
+              {
+                method: "POST",
+              }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+              throw new Error(
+                data.message || "Failed to remove expired stock"
+              );
+            }
+
+            toast.success("Expired stock removed successfully", {
+              description:
+                `${data.removedQuantity} units removed from ` +
+                `${data.batchNumber}.`,
+            });
+
+            await fetchData();
+          } catch (error) {
+            console.error(error);
+
+            toast.error(
+              error instanceof Error
+                ? error.message
+                : "Failed to remove expired stock"
+            );
+          } finally {
+            setRemovingBatchId(null);
+          }
+        },
+      },
+
+      cancel: {
+        label: "Cancel",
+        onClick: () => {},
+      },
+
+      duration: 10000,
+    });
+  };
 
   const getRackName = (rackId?: string) => {
     if (!rackId) return "-";
@@ -219,6 +284,7 @@ export default function ExpiryManagementPage() {
   return (
     <div className="min-h-screen bg-gray-50 px-6 py-8">
       <div className="mx-auto max-w-7xl">
+
         {/* Header */}
         <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -241,6 +307,7 @@ export default function ExpiryManagementPage() {
 
         {/* Summary Cards */}
         <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <p className="text-sm font-medium text-gray-500">
               Total Batches
@@ -288,11 +355,13 @@ export default function ExpiryManagementPage() {
               {summary.goodCount}
             </p>
           </div>
+
         </div>
 
         {/* Filters */}
         <div className="mb-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+
             <div className="w-full lg:max-w-xl">
               <input
                 type="text"
@@ -304,6 +373,7 @@ export default function ExpiryManagementPage() {
             </div>
 
             <div className="flex flex-wrap gap-2">
+
               <button
                 type="button"
                 onClick={() => setStatusFilter("ALL")}
@@ -351,16 +421,21 @@ export default function ExpiryManagementPage() {
               >
                 Good
               </button>
+
             </div>
           </div>
         </div>
 
         {/* Table */}
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+
           <div className="overflow-x-auto">
-            <table className="min-w-[1250px] w-full text-left text-sm">
+
+            <table className="min-w-[1400px] w-full text-left text-sm">
+
               <thead className="border-b border-gray-200 bg-gray-50">
                 <tr>
+
                   <th className="px-5 py-4 font-semibold text-gray-700">
                     Medicine
                   </th>
@@ -392,14 +467,20 @@ export default function ExpiryManagementPage() {
                   <th className="px-5 py-4 font-semibold text-gray-700">
                     Status
                   </th>
+
+                  <th className="px-5 py-4 font-semibold text-gray-700">
+                    Action
+                  </th>
+
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-gray-100">
+
                 {loading ? (
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={9}
                       className="px-5 py-12 text-center text-gray-500"
                     >
                       Loading expiry data...
@@ -408,7 +489,7 @@ export default function ExpiryManagementPage() {
                 ) : filteredBatches.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={9}
                       className="px-5 py-12 text-center"
                     >
                       <p className="font-semibold text-gray-700">
@@ -426,6 +507,8 @@ export default function ExpiryManagementPage() {
                       key={batch._id}
                       className="transition hover:bg-gray-50"
                     >
+
+                      {/* Medicine */}
                       <td className="px-5 py-4">
                         <div>
                           <p className="font-semibold text-gray-900">
@@ -450,18 +533,22 @@ export default function ExpiryManagementPage() {
                         </div>
                       </td>
 
+                      {/* Batch */}
                       <td className="px-5 py-4 font-medium text-gray-800">
                         {batch.batchNumber}
                       </td>
 
+                      {/* Rack */}
                       <td className="px-5 py-4 text-gray-700">
                         {getRackName(batch.medicine?.rack)}
                       </td>
 
+                      {/* Shelf */}
                       <td className="px-5 py-4 text-gray-700">
                         {batch.medicine?.shelf || "-"}
                       </td>
 
+                      {/* Current Stock */}
                       <td className="px-5 py-4">
                         <span className="font-semibold text-gray-900">
                           {batch.currentStock}
@@ -472,10 +559,12 @@ export default function ExpiryManagementPage() {
                         </span>
                       </td>
 
+                      {/* Expiry Date */}
                       <td className="px-5 py-4 text-gray-700">
                         {formatDate(batch.expiryDate)}
                       </td>
 
+                      {/* Days */}
                       <td className="px-5 py-4">
                         <span
                           className={`font-semibold ${
@@ -490,12 +579,40 @@ export default function ExpiryManagementPage() {
                         </span>
                       </td>
 
+                      {/* Status */}
                       <td className="px-5 py-4">
                         {getStatusBadge(batch.status)}
                       </td>
+
+                      {/* Action */}
+                      <td className="px-5 py-4">
+                        {batch.status === "EXPIRED" &&
+                        batch.currentStock > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => removeExpiredStock(batch)}
+                            disabled={removingBatchId === batch._id}
+                            className="rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {removingBatchId === batch._id
+                              ? "Removing..."
+                              : "Mark as Expired"}
+                          </button>
+                        ) : batch.status === "EXPIRED" ? (
+                          <span className="text-xs font-medium text-gray-400">
+                            Stock already removed
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">
+                            -
+                          </span>
+                        )}
+                      </td>
+
                     </tr>
                   ))
                 )}
+
               </tbody>
             </table>
           </div>
@@ -513,6 +630,7 @@ export default function ExpiryManagementPage() {
               batches
             </div>
           )}
+
         </div>
       </div>
     </div>
