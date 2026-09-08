@@ -1,6 +1,7 @@
 
-
 "use client";
+
+import { useState } from "react";
 
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
@@ -12,14 +13,21 @@ interface AdminLayoutProps {
 export default function AdminLayout({
   children,
 }: AdminLayoutProps) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-muted/30">
-      <Sidebar />
+      <Sidebar
+        mobileOpen={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+      />
 
-      <Navbar />
+      <Navbar
+        onMenuClick={() => setMobileOpen(true)}
+      />
 
-      <main className="ml-64 pt-16">
-        <div className="min-h-[calc(100vh-4rem)] p-6">
+      <main className="ml-0 pt-16 md:ml-64">
+        <div className="min-h-[calc(100vh-4rem)] p-4 md:p-6">
           {children}
         </div>
       </main>
