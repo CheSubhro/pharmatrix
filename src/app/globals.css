@@ -139,3 +139,78 @@ body {
     @apply font-sans;
   }
 }
+
+
+/* =========================================
+   Purchase Invoice - Print Only
+========================================= */
+
+@media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  html,
+  body {
+    width: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  /*
+   * Hide everything during printing.
+   */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /*
+   * Show only the purchase invoice.
+   */
+  .purchase-invoice-print,
+  .purchase-invoice-print * {
+    visibility: visible !important;
+  }
+
+  /*
+   * Place invoice at the top-left of the print page.
+   */
+  .purchase-invoice-print {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  /*
+   * Avoid unwanted page breaks.
+   */
+  .purchase-invoice-print table {
+    page-break-inside: auto;
+  }
+
+  .purchase-invoice-print tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  .purchase-invoice-print h1,
+  .purchase-invoice-print h2,
+  .purchase-invoice-print h3 {
+    page-break-after: avoid;
+  }
+
+  /*
+   * Remove browser-added visual effects.
+   */
+  .purchase-invoice-print * {
+    box-shadow: none !important;
+  }
+}
+
