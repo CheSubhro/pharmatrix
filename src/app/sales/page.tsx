@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -321,9 +322,62 @@ export default function SalesPage() {
     setDiscount(safeDiscount);
   };
 
-  const netAmount = Math.max(
+  const netBeforeTax = Math.max(
     0,
     subtotal - discount
+  );
+
+  /*
+   * Discount is distributed proportionally across
+   * cart items before calculating each item's GST.
+   *
+   * Example:
+   * Subtotal = ₹100
+   * Discount = ₹10
+   * Taxable amount = ₹90
+   *
+   * Each item's taxable value is reduced
+   * proportionally and then its own taxRate
+   * is applied.
+   */
+  const cartTaxDetails = useMemo(() => {
+    return cart.map((item) => {
+      const itemSubtotal = getItemTotal(item);
+
+      const discountShare =
+        subtotal > 0
+          ? (itemSubtotal / subtotal) * discount
+          : 0;
+
+      const taxableAmount = Math.max(
+        0,
+        itemSubtotal - discountShare
+      );
+
+      const taxAmount =
+        (taxableAmount * item.medicine.taxRate) / 100;
+
+      return {
+        medicineId: item.medicine._id,
+        itemSubtotal,
+        discountShare,
+        taxableAmount,
+        taxRate: item.medicine.taxRate,
+        taxAmount,
+      };
+    });
+  }, [cart, subtotal, discount]);
+
+  const totalTax = useMemo(() => {
+    return cartTaxDetails.reduce(
+      (total, item) => total + item.taxAmount,
+      0
+    );
+  }, [cartTaxDetails]);
+
+  const grandTotal = Math.max(
+    0,
+    netBeforeTax + totalTax
   );
 
   return (
@@ -535,11 +589,15 @@ export default function SalesPage() {
                           </th>
 
                           <th className="px-4 py-3 text-center font-semibold text-gray-700">
-                            Quantity
+                            Qty
                           </th>
 
                           <th className="px-4 py-3 text-right font-semibold text-gray-700">
                             Rate
+                          </th>
+
+                          <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                            Tax
                           </th>
 
                           <th className="px-4 py-3 text-right font-semibold text-gray-700">
@@ -623,6 +681,10 @@ export default function SalesPage() {
                               )}
                             </td>
 
+                            <td className="px-4 py-4 text-right text-gray-600">
+                              {item.medicine.taxRate}%
+                            </td>
+
                             <td className="px-4 py-4 text-right font-semibold text-gray-900">
                               ₹
                               {getItemTotal(
@@ -694,15 +756,37 @@ export default function SalesPage() {
                         </div>
                       </div>
 
-                      {/* Net Amount */}
+                      {/* Taxable Amount */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">
+                          Taxable Amount
+                        </span>
+
+                        <span className="text-sm font-semibold text-gray-900">
+                          ₹{netBeforeTax.toFixed(2)}
+                        </span>
+                      </div>
+
+                      {/* GST */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">
+                          GST / Tax
+                        </span>
+
+                        <span className="text-sm font-semibold text-gray-900">
+                          ₹{totalTax.toFixed(2)}
+                        </span>
+                      </div>
+
+                      {/* Grand Total */}
                       <div className="border-t border-gray-300 pt-3">
                         <div className="flex items-center justify-between">
                           <span className="text-base font-semibold text-gray-900">
-                            Net Amount
+                            Grand Total
                           </span>
 
                           <span className="text-xl font-bold text-gray-900">
-                            ₹{netAmount.toFixed(2)}
+                            ₹{grandTotal.toFixed(2)}
                           </span>
                         </div>
                       </div>
