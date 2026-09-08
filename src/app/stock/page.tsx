@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
@@ -39,36 +40,32 @@ interface StockMovement {
   movementDate: string;
 }
 
+interface FEFOAllocation {
+  batchId: string;
+  batchNumber: string;
+  expiryDate: string;
+  quantity: number;
+  remainingStock: number;
+}
+
 export default function StockPage() {
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
-  const [movements, setMovements] = useState<
-    StockMovement[]
-  >([]);
+  const [movements, setMovements] = useState<StockMovement[]>([]);
 
-  const [selectedMedicine, setSelectedMedicine] =
-    useState("");
+  const [selectedMedicine, setSelectedMedicine] = useState("");
+  const [selectedBatch, setSelectedBatch] = useState("");
 
-  const [selectedBatch, setSelectedBatch] =
-    useState("");
-
-  const [type, setType] =
-    useState<"IN" | "OUT">("IN");
+  const [type, setType] = useState<"IN" | "OUT">("IN");
 
   const [quantity, setQuantity] = useState("");
   const [reason, setReason] = useState("");
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
 
-  const [loadingMedicines, setLoadingMedicines] =
-    useState(true);
-
-  const [loadingBatches, setLoadingBatches] =
-    useState(false);
-
-  const [loadingMovements, setLoadingMovements] =
-    useState(true);
-
+  const [loadingMedicines, setLoadingMedicines] = useState(true);
+  const [loadingBatches, setLoadingBatches] = useState(false);
+  const [loadingMovements, setLoadingMovements] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const [error, setError] = useState("");
@@ -88,10 +85,7 @@ export default function StockPage() {
 
       setMedicines(data.medicines || []);
     } catch (error) {
-      console.error(
-        "Fetch medicines error:",
-        error
-      );
+      console.error("Fetch medicines error:", error);
 
       setError(
         error instanceof Error
@@ -114,10 +108,7 @@ export default function StockPage() {
       setLoadingBatches(true);
       setSelectedBatch("");
 
-      const response = await fetch(
-        "/api/medicine-batches"
-      );
-
+      const response = await fetch("/api/medicine-batches");
       const data = await response.json();
 
       if (!response.ok || !data.success) {
@@ -139,10 +130,7 @@ export default function StockPage() {
 
       setBatches(filteredBatches);
     } catch (error) {
-      console.error(
-        "Fetch batches error:",
-        error
-      );
+      console.error("Fetch batches error:", error);
 
       toast.error(
         error instanceof Error
@@ -160,25 +148,18 @@ export default function StockPage() {
     try {
       setLoadingMovements(true);
 
-      const response = await fetch(
-        "/api/stock-movements"
-      );
-
+      const response = await fetch("/api/stock-movements");
       const data = await response.json();
 
       if (!response.ok || !data.success) {
         throw new Error(
-          data.message ||
-            "Failed to fetch stock movements"
+          data.message || "Failed to fetch stock movements"
         );
       }
 
       setMovements(data.movements || []);
     } catch (error) {
-      console.error(
-        "Fetch movements error:",
-        error
-      );
+      console.error("Fetch movements error:", error);
 
       toast.error(
         error instanceof Error
@@ -203,26 +184,22 @@ export default function StockPage() {
     (batch) => batch._id === selectedBatch
   );
 
-  const handleSubmit = async (
-    event: FormEvent<HTMLFormElement>
-  ) => {
-    event.preventDefault();
+  const resetForm = () => {
+    setQuantity("");
+    setReason("");
+    setReference("");
+    setNote("");
+  };
 
-    setError("");
-
+  const validateCommonFields = () => {
     if (!selectedMedicine) {
       toast.error("Please select a medicine");
-      return;
-    }
-
-    if (!selectedBatch) {
-      toast.error("Please select a batch");
-      return;
+      return null;
     }
 
     if (quantity === "") {
       toast.error("Quantity is required");
-      return;
+      return null;
     }
 
     const parsedQuantity = Number(quantity);
@@ -231,71 +208,134 @@ export default function StockPage() {
       !Number.isFinite(parsedQuantity) ||
       parsedQuantity <= 0
     ) {
-      toast.error(
-        "Quantity must be greater than 0"
-      );
-      return;
+      toast.error("Quantity must be greater than 0");
+      return null;
     }
 
     if (!Number.isInteger(parsedQuantity)) {
-      toast.error(
-        "Quantity must be a whole number"
-      );
+      toast.error("Quantity must be a whole number");
+      return null;
+    }
+
+    return parsedQuantity;
+  };
+
+  const handleStockIn = async (parsedQuantity: number) => {
+    if (!selectedBatch) {
+      toast.error("Please select a batch for Stock In");
       return;
     }
 
-    if (
-      type === "OUT" &&
-      selectedBatchData &&
-      parsedQuantity > selectedBatchData.currentStock
-    ) {
-      toast.error(
-        `Insufficient stock. Current stock is ${selectedBatchData.currentStock}`
+    const response = await fetch("/api/stock-movements", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        medicine: selectedMedicine,
+        batch: selectedBatch,
+        type: "IN",
+        quantity: parsedQuantity,
+        reason: reason.trim() || undefined,
+        reference: reference.trim() || undefined,
+        note: note.trim() || undefined,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(
+        data.message || "Failed to add stock"
       );
+    }
+
+    toast.success(data.message);
+
+    resetForm();
+
+    await fetchBatches(selectedMedicine);
+    await fetchMovements();
+  };
+
+  const handleStockOutFEFO = async (
+    parsedQuantity: number
+  ) => {
+    const response = await fetch(
+      "/api/stock-movements/fefo",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          medicine: selectedMedicine,
+          quantity: parsedQuantity,
+          reason: reason.trim() || "Sale",
+          reference: reference.trim() || undefined,
+          note: note.trim() || undefined,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(
+        data.message || "Failed to remove stock"
+      );
+    }
+
+    const allocations: FEFOAllocation[] =
+      data.allocations || [];
+
+    toast.success(
+      `Stock Out completed successfully. ${parsedQuantity} units removed using FEFO.`
+    );
+
+    if (allocations.length > 0) {
+      const allocationText = allocations
+        .map(
+          (item) =>
+            `${item.batchNumber}: ${item.quantity}`
+        )
+        .join(" • ");
+
+      toast.info(
+        `Batch allocation: ${allocationText}`,
+        {
+          duration: 7000,
+        }
+      );
+    }
+
+    resetForm();
+
+    await fetchBatches(selectedMedicine);
+    await fetchMovements();
+  };
+
+  const handleSubmit = async (
+    event: FormEvent<HTMLFormElement>
+  ) => {
+    event.preventDefault();
+
+    setError("");
+
+    const parsedQuantity = validateCommonFields();
+
+    if (parsedQuantity === null) {
       return;
     }
 
     try {
       setSaving(true);
 
-      const response = await fetch(
-        "/api/stock-movements",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            medicine: selectedMedicine,
-            batch: selectedBatch,
-            type,
-            quantity: parsedQuantity,
-            reason: reason.trim() || undefined,
-            reference:
-              reference.trim() || undefined,
-            note: note.trim() || undefined,
-          }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(
-          data.message ||
-            "Failed to update stock"
-        );
+      if (type === "IN") {
+        await handleStockIn(parsedQuantity);
+      } else {
+        await handleStockOutFEFO(parsedQuantity);
       }
-
-      toast.success(data.message);
-
-      setQuantity("");
-      setReason("");
-      setReference("");
-      setNote("");
-
-      await fetchBatches(selectedMedicine);
-      await fetchMovements();
     } catch (error) {
       console.error(
         "Stock movement error:",
@@ -351,6 +391,7 @@ export default function StockPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="mx-auto max-w-7xl">
+
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">
@@ -364,13 +405,14 @@ export default function StockPage() {
 
         {/* Stock Movement Form */}
         <div className="mb-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+
           <div className="mb-5">
             <h2 className="text-lg font-semibold text-gray-900">
               Stock Movement
             </h2>
 
             <p className="mt-1 text-sm text-gray-500">
-              Add incoming stock or remove stock from a batch.
+              Add incoming stock or remove stock using FEFO.
             </p>
           </div>
 
@@ -379,6 +421,7 @@ export default function StockPage() {
             className="space-y-5"
           >
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+
               {/* Medicine */}
               <div>
                 <label
@@ -425,51 +468,69 @@ export default function StockPage() {
                 </select>
               </div>
 
-              {/* Batch */}
+              {/* Batch / FEFO */}
               <div>
                 <label
                   htmlFor="batch"
                   className="mb-2 block text-sm font-medium text-gray-700"
                 >
-                  Batch{" "}
-                  <span className="text-red-500">*</span>
+                  Batch
+                  {type === "IN" && (
+                    <span className="text-red-500">
+                      {" "}*
+                    </span>
+                  )}
                 </label>
 
-                <select
-                  id="batch"
-                  value={selectedBatch}
-                  onChange={(event) =>
-                    setSelectedBatch(
-                      event.target.value
-                    )
-                  }
-                  disabled={
-                    !selectedMedicine ||
-                    loadingBatches ||
-                    saving
-                  }
-                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-black focus:ring-2 focus:ring-gray-200 disabled:cursor-not-allowed disabled:bg-gray-100"
-                >
-                  <option value="">
-                    {!selectedMedicine
-                      ? "Select medicine first"
-                      : loadingBatches
-                      ? "Loading batches..."
-                      : batches.length === 0
-                      ? "No batches found"
-                      : "Select batch"}
-                  </option>
-
-                  {batches.map((batch) => (
-                    <option
-                      key={batch._id}
-                      value={batch._id}
-                    >
-                      {batch.batchNumber} — Stock:{" "}
-                      {batch.currentStock}
+                {type === "IN" ? (
+                  <select
+                    id="batch"
+                    value={selectedBatch}
+                    onChange={(event) =>
+                      setSelectedBatch(
+                        event.target.value
+                      )
+                    }
+                    disabled={
+                      !selectedMedicine ||
+                      loadingBatches ||
+                      saving
+                    }
+                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-black focus:ring-2 focus:ring-gray-200 disabled:cursor-not-allowed disabled:bg-gray-100"
+                  >
+                    <option value="">
+                      {!selectedMedicine
+                        ? "Select medicine first"
+                        : loadingBatches
+                        ? "Loading batches..."
+                        : batches.length === 0
+                        ? "No batches found"
+                        : "Select batch"}
                     </option>
-                  ))}
-                </select>
+
+                    {batches.map((batch) => (
+                      <option
+                        key={batch._id}
+                        value={batch._id}
+                      >
+                        {batch.batchNumber} — Stock:{" "}
+                        {batch.currentStock}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="flex min-h-[42px] items-center rounded-lg border border-gray-300 bg-gray-50 px-4">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        FEFO — Automatic
+                      </p>
+
+                      <p className="text-xs text-gray-500">
+                        Earliest expiry batch will be used first
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Type */}
@@ -485,13 +546,18 @@ export default function StockPage() {
                 <select
                   id="type"
                   value={type}
-                  onChange={(event) =>
-                    setType(
+                  onChange={(event) => {
+                    const newType =
                       event.target.value as
                         | "IN"
-                        | "OUT"
-                    )
-                  }
+                        | "OUT";
+
+                    setType(newType);
+
+                    if (newType === "OUT") {
+                      setSelectedBatch("");
+                    }
+                  }}
                   disabled={saving}
                   className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-black focus:ring-2 focus:ring-gray-200 disabled:bg-gray-100"
                 >
@@ -500,7 +566,7 @@ export default function StockPage() {
                   </option>
 
                   <option value="OUT">
-                    Stock Out
+                    Stock Out — FEFO
                   </option>
                 </select>
               </div>
@@ -633,10 +699,38 @@ export default function StockPage() {
               </div>
             </div>
 
-            {/* Selected Batch Info */}
-            {selectedBatchData && (
+            {/* FEFO Information */}
+            {type === "OUT" && selectedMedicine && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
+                      F
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-semibold text-blue-900">
+                      FEFO Stock Out Enabled
+                    </p>
+
+                    <p className="mt-1 text-sm text-blue-700">
+                      The system will automatically use the batch
+                      with the earliest expiry date first. If that
+                      batch does not have enough stock, the remaining
+                      quantity will be taken from the next earliest
+                      batch.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Selected Batch Info - Stock In only */}
+            {type === "IN" && selectedBatchData && (
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+
                   <div>
                     <p className="text-xs text-gray-500">
                       Selected Batch
@@ -668,6 +762,7 @@ export default function StockPage() {
                       )}
                     </p>
                   </div>
+
                 </div>
               </div>
             )}
@@ -688,7 +783,7 @@ export default function StockPage() {
                   ? "Updating..."
                   : type === "IN"
                   ? "Add Stock"
-                  : "Remove Stock"}
+                  : "Remove Stock — FEFO"}
               </button>
             </div>
           </form>
@@ -696,6 +791,7 @@ export default function StockPage() {
 
         {/* Stock Movement History */}
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+
           <div className="border-b border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900">
               Stock Movement History
@@ -725,8 +821,10 @@ export default function StockPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
+
                 <thead className="border-b border-gray-200 bg-gray-50">
                   <tr>
+
                     <th className="px-4 py-3 text-left font-semibold text-gray-700">
                       Date
                     </th>
@@ -758,15 +856,18 @@ export default function StockPage() {
                     <th className="px-4 py-3 text-left font-semibold text-gray-700">
                       Note
                     </th>
+
                   </tr>
                 </thead>
 
                 <tbody className="divide-y divide-gray-100">
+
                   {movements.map((movement) => (
                     <tr
                       key={movement._id}
                       className="transition hover:bg-gray-50"
                     >
+
                       <td className="whitespace-nowrap px-4 py-4 text-gray-600">
                         {formatDateTime(
                           movement.movementDate
@@ -780,8 +881,7 @@ export default function StockPage() {
                               "-"}
                           </p>
 
-                          {movement.medicine
-                            ?.strength && (
+                          {movement.medicine?.strength && (
                             <p className="mt-0.5 text-xs text-gray-500">
                               {
                                 movement.medicine
@@ -793,8 +893,8 @@ export default function StockPage() {
                       </td>
 
                       <td className="px-4 py-4 font-medium text-gray-700">
-                        {movement.batch
-                          ?.batchNumber || "-"}
+                        {movement.batch?.batchNumber ||
+                          "-"}
                       </td>
 
                       <td className="px-4 py-4 text-center">
@@ -829,13 +929,16 @@ export default function StockPage() {
                       <td className="max-w-xs px-4 py-4 text-gray-600">
                         {movement.note || "-"}
                       </td>
+
                     </tr>
                   ))}
+
                 </tbody>
               </table>
             </div>
           )}
         </div>
+
       </div>
     </div>
   );
