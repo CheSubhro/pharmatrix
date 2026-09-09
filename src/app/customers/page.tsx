@@ -86,46 +86,51 @@ export default function CustomersPage() {
     );
   });
 
-  const handleDeactivate = async (id: string) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to deactivate this customer?"
-    );
 
-    if (!confirmed) {
-      return;
-    }
+    const handleDeactivate = (id: string, customerName: string) => {
+    toast.warning(`Deactivate "${customerName}"?`, {
+        description: "This customer will be removed from the active customer list.",
+        duration: 10000,
+        action: {
+        label: "Deactivate",
+        onClick: async () => {
+            try {
+            const response = await fetch(`/api/customers/${id}`, {
+                method: "DELETE",
+            });
 
-    try {
-      const response = await fetch(
-        `/api/customers/${id}`,
-        {
-          method: "DELETE",
-        }
-      );
+            const data = await response.json();
 
-      const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(
+                data.message || "Failed to deactivate customer"
+                );
+            }
 
-      if (!response.ok || !data.success) {
-        throw new Error(
-          data.message || "Failed to deactivate customer"
-        );
-      }
+            toast.success("Customer deactivated successfully");
 
-      toast.success(
-        "Customer deactivated successfully"
-      );
+            fetchCustomers();
+            } catch (error) {
+            console.error(error);
 
-      fetchCustomers();
-    } catch (error) {
-      console.error(error);
+            toast.error(
+                error instanceof Error
+                ? error.message
+                : "Failed to deactivate customer"
+            );
+            }
+        },
+        },
+        cancel: {
+        label: "Cancel",
+        onClick: () => {
+            toast.dismiss();
+        },
+        },
+    });
+    };
 
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to deactivate customer"
-      );
-    }
-  };
+
 
   const formatDate = (date?: string) => {
     if (!date) {
@@ -360,9 +365,9 @@ export default function CustomersPage() {
 
                         <button
                           type="button"
-                          onClick={() =>
-                            handleDeactivate(customer._id)
-                          }
+                            onClick={() =>
+                                handleDeactivate(customer._id, customer.customerName)
+                            }
                           className="rounded-lg bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700"
                         >
                           Deactivate
