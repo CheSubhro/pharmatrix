@@ -14,6 +14,11 @@ import {
   ShoppingCart,
   User,
   IndianRupee,
+  Plus,
+  Eye,
+  Trash2,
+  Upload,
+  X,
 } from "lucide-react";
 
 interface Customer {
@@ -73,11 +78,32 @@ interface Summary {
   latestPurchaseDate: string | null;
 }
 
+interface Prescription {
+  _id: string;
+  customer: string;
+  doctorName: string;
+  prescriptionDate: string;
+  fileUrl?: string;
+  filePublicId?: string;
+  fileType?: "IMAGE" | "PDF";
+  notes?: string;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 interface ApiResponse {
   success: boolean;
   customer: Customer;
   summary: Summary;
   purchases: Purchase[];
+  message?: string;
+}
+
+interface PrescriptionApiResponse {
+  success: boolean;
+  prescriptions?: Prescription[];
+  prescription?: Prescription;
   message?: string;
 }
 
@@ -105,6 +131,33 @@ export default function CustomerDetailsPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Prescription states
+  const [prescriptions, setPrescriptions] = useState<
+    Prescription[]
+  >([]);
+
+  const [prescriptionLoading, setPrescriptionLoading] =
+    useState(false);
+
+  const [showPrescriptionForm, setShowPrescriptionForm] =
+    useState(false);
+
+  const [savingPrescription, setSavingPrescription] =
+    useState(false);
+
+  const [deletingPrescription, setDeletingPrescription] =
+    useState<string | null>(null);
+
+  const [doctorName, setDoctorName] = useState("");
+  const [prescriptionDate, setPrescriptionDate] =
+    useState("");
+
+  const [prescriptionFile, setPrescriptionFile] =
+    useState<File | null>(null);
+
+  const [prescriptionNotes, setPrescriptionNotes] =
+    useState("");
+
   useEffect(() => {
     const loadParams = async () => {
       const resolvedParams = await params;
@@ -114,6 +167,7 @@ export default function CustomerDetailsPage({
     loadParams();
   }, [params]);
 
+  // Fetch customer purchase history
   useEffect(() => {
     if (!customerId) return;
 
@@ -152,6 +206,44 @@ export default function CustomerDetailsPage({
     };
 
     fetchPurchaseHistory();
+  }, [customerId]);
+
+  // Fetch prescriptions
+  const fetchPrescriptions = async () => {
+    if (!customerId) return;
+
+    try {
+      setPrescriptionLoading(true);
+
+      const response = await fetch(
+        `/api/customers/${customerId}/prescriptions`
+      );
+
+      const data: PrescriptionApiResponse =
+        await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.message ||
+            "Failed to fetch prescriptions"
+        );
+      }
+
+      setPrescriptions(data.prescriptions || []);
+    } catch (error) {
+      console.error(
+        "Failed to fetch prescriptions:",
+        error
+      );
+    } finally {
+      setPrescriptionLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!customerId) return;
+
+    fetchPrescriptions();
   }, [customerId]);
 
   const formatDate = (date?: string | null) => {
@@ -204,12 +296,152 @@ export default function CustomerDetailsPage({
     }
   };
 
+  // Add prescription
+  const handleAddPrescription = async (
+    event: React.FormEvent<HTMLFormElement>
+  ) => {
+    event.preventDefault();
+
+    if (!customerId) return;
+
+    if (!doctorName.trim()) {
+      alert("Doctor name is required");
+      return;
+    }
+
+    if (!prescriptionDate) {
+      alert("Prescription date is required");
+      return;
+    }
+
+    try {
+      setSavingPrescription(true);
+
+      const formData = new FormData();
+
+      formData.append(
+        "doctorName",
+        doctorName.trim()
+      );
+
+      formData.append(
+        "prescriptionDate",
+        prescriptionDate
+      );
+
+      if (prescriptionNotes.trim()) {
+        formData.append(
+          "notes",
+          prescriptionNotes.trim()
+        );
+      }
+
+      if (prescriptionFile) {
+        formData.append(
+          "file",
+          prescriptionFile
+        );
+      }
+
+      const response = await fetch(
+        `/api/customers/${customerId}/prescriptions`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const data: PrescriptionApiResponse =
+        await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.message ||
+            "Failed to add prescription"
+        );
+      }
+
+      // Reset form
+      setDoctorName("");
+      setPrescriptionDate("");
+      setPrescriptionFile(null);
+      setPrescriptionNotes("");
+      setShowPrescriptionForm(false);
+
+      // Refresh prescriptions
+      await fetchPrescriptions();
+
+      alert("Prescription added successfully");
+    } catch (error) {
+      console.error(error);
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to add prescription"
+      );
+    } finally {
+      setSavingPrescription(false);
+    }
+  };
+
+  // Delete prescription
+  const handleDeletePrescription = async (
+    prescriptionId: string
+  ) => {
+    if (!customerId) return;
+
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this prescription?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setDeletingPrescription(prescriptionId);
+
+      const response = await fetch(
+        `/api/customers/${customerId}/prescriptions?prescriptionId=${prescriptionId}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const data: PrescriptionApiResponse =
+        await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.message ||
+            "Failed to delete prescription"
+        );
+      }
+
+      setPrescriptions((current) =>
+        current.filter(
+          (item) => item._id !== prescriptionId
+        )
+      );
+    } catch (error) {
+      console.error(error);
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to delete prescription"
+      );
+    } finally {
+      setDeletingPrescription(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="w-8 h-8 border-2 border-gray-300 border-t-black rounded-full animate-spin mx-auto mb-3" />
+
             <p className="text-sm text-gray-500">
               Loading customer details...
             </p>
@@ -325,7 +557,10 @@ export default function CustomerDetailsPage({
             </div>
 
             <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-              <FileText size={20} className="text-gray-600" />
+              <FileText
+                size={20}
+                className="text-gray-600"
+              />
             </div>
           </div>
         </div>
@@ -396,6 +631,312 @@ export default function CustomerDetailsPage({
         </div>
       </div>
 
+      {/* Prescription Section */}
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div className="px-6 py-5 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Prescriptions
+              </h2>
+
+              <p className="text-sm text-gray-500 mt-1">
+                Prescription records for this customer
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                setShowPrescriptionForm(
+                  (current) => !current
+                )
+              }
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition"
+            >
+              {showPrescriptionForm ? (
+                <>
+                  <X size={16} />
+                  Close
+                </>
+              ) : (
+                <>
+                  <Plus size={16} />
+                  Add Prescription
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Add Prescription Form */}
+        {showPrescriptionForm && (
+          <div className="p-6 border-b border-gray-200 bg-gray-50">
+            <form
+              onSubmit={handleAddPrescription}
+              className="space-y-5"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Doctor Name
+                    <span className="text-red-500 ml-1">
+                      *
+                    </span>
+                  </label>
+
+                  <input
+                    type="text"
+                    value={doctorName}
+                    onChange={(event) =>
+                      setDoctorName(event.target.value)
+                    }
+                    placeholder="Enter doctor name"
+                    className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:border-black focus:ring-1 focus:ring-black"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Prescription Date
+                    <span className="text-red-500 ml-1">
+                      *
+                    </span>
+                  </label>
+
+                  <input
+                    type="date"
+                    value={prescriptionDate}
+                    onChange={(event) =>
+                      setPrescriptionDate(
+                        event.target.value
+                      )
+                    }
+                    className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:border-black focus:ring-1 focus:ring-black"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Prescription File
+                </label>
+
+                <div className="border border-dashed border-gray-300 rounded-lg bg-white p-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <label className="inline-flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer transition">
+                      <Upload size={16} />
+
+                      Choose File
+
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,application/pdf"
+                        onChange={(event) =>
+                          setPrescriptionFile(
+                            event.target.files?.[0] ||
+                              null
+                          )
+                        }
+                        className="hidden"
+                      />
+                    </label>
+
+                    {prescriptionFile ? (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <FileText size={16} />
+
+                        <span className="truncate max-w-[280px]">
+                          {prescriptionFile.name}
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPrescriptionFile(null)
+                          }
+                          className="text-gray-400 hover:text-red-600"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500">
+                        JPG, PNG, WEBP or PDF — maximum
+                        10 MB
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Notes
+                </label>
+
+                <textarea
+                  value={prescriptionNotes}
+                  onChange={(event) =>
+                    setPrescriptionNotes(
+                      event.target.value
+                    )
+                  }
+                  rows={3}
+                  placeholder="Add prescription notes..."
+                  className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm outline-none resize-none focus:border-black focus:ring-1 focus:ring-black"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPrescriptionForm(false);
+                    setDoctorName("");
+                    setPrescriptionDate("");
+                    setPrescriptionFile(null);
+                    setPrescriptionNotes("");
+                  }}
+                  className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={savingPrescription}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  {savingPrescription ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={16} />
+                      Save Prescription
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Prescription List */}
+        {prescriptionLoading ? (
+          <div className="py-12 text-center">
+            <div className="w-7 h-7 border-2 border-gray-300 border-t-black rounded-full animate-spin mx-auto mb-3" />
+
+            <p className="text-sm text-gray-500">
+              Loading prescriptions...
+            </p>
+          </div>
+        ) : prescriptions.length === 0 ? (
+          <div className="py-14 text-center">
+            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <FileText
+                size={22}
+                className="text-gray-500"
+              />
+            </div>
+
+            <h3 className="font-medium text-gray-900">
+              No prescriptions
+            </h3>
+
+            <p className="text-sm text-gray-500 mt-1">
+              No prescription records have been added
+              for this customer yet.
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-200">
+            {prescriptions.map((prescription) => (
+              <div
+                key={prescription._id}
+                className="p-6 hover:bg-gray-50 transition"
+              >
+                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-11 h-11 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                      <FileText
+                        size={20}
+                        className="text-gray-600"
+                      />
+                    </div>
+
+                    <div>
+                      <h3 className="font-semibold text-gray-900">
+                        {prescription.doctorName}
+                      </h3>
+
+                      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-2">
+                        <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                          <CalendarDays size={15} />
+                          {formatDate(
+                            prescription.prescriptionDate
+                          )}
+                        </div>
+
+                        {prescription.fileType && (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-gray-100 border border-gray-200 text-xs font-medium text-gray-600">
+                            {prescription.fileType}
+                          </span>
+                        )}
+                      </div>
+
+                      {prescription.notes && (
+                        <p className="text-sm text-gray-600 mt-3">
+                          {prescription.notes}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {prescription.fileUrl && (
+                      <a
+                        href={prescription.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-3.5 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-white hover:text-black transition"
+                      >
+                        <Eye size={16} />
+                        View
+                      </a>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleDeletePrescription(
+                          prescription._id
+                        )
+                      }
+                      disabled={
+                        deletingPrescription ===
+                        prescription._id
+                      }
+                      className="inline-flex items-center gap-2 px-3.5 py-2 border border-red-200 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 transition"
+                    >
+                      <Trash2 size={16} />
+
+                      {deletingPrescription ===
+                      prescription._id
+                        ? "Deleting..."
+                        : "Delete"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Purchase History */}
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         <div className="px-6 py-5 border-b border-gray-200">
@@ -412,7 +953,9 @@ export default function CustomerDetailsPage({
 
             <span className="text-sm text-gray-500">
               {purchases.length}{" "}
-              {purchases.length === 1 ? "Bill" : "Bills"}
+              {purchases.length === 1
+                ? "Bill"
+                : "Bills"}
             </span>
           </div>
         </div>
@@ -431,7 +974,8 @@ export default function CustomerDetailsPage({
             </h3>
 
             <p className="text-sm text-gray-500 mt-1">
-              This customer has no completed purchases yet.
+              This customer has no completed purchases
+              yet.
             </p>
           </div>
         ) : (
@@ -463,7 +1007,9 @@ export default function CustomerDetailsPage({
                     </div>
 
                     <p className="text-sm text-gray-500 mt-2">
-                      {formatDateTime(purchase.saleDate)}
+                      {formatDateTime(
+                        purchase.saleDate
+                      )}
                     </p>
                   </div>
 
@@ -557,6 +1103,7 @@ export default function CustomerDetailsPage({
                   <div className="w-full sm:w-72 space-y-2 text-sm">
                     <div className="flex justify-between text-gray-600">
                       <span>Subtotal</span>
+
                       <span>
                         {formatCurrency(
                           purchase.subtotal
@@ -567,6 +1114,7 @@ export default function CustomerDetailsPage({
                     {purchase.discount > 0 && (
                       <div className="flex justify-between text-gray-600">
                         <span>Discount</span>
+
                         <span>
                           -
                           {formatCurrency(
@@ -579,14 +1127,18 @@ export default function CustomerDetailsPage({
                     {purchase.tax > 0 && (
                       <div className="flex justify-between text-gray-600">
                         <span>Tax / GST</span>
+
                         <span>
-                          {formatCurrency(purchase.tax)}
+                          {formatCurrency(
+                            purchase.tax
+                          )}
                         </span>
                       </div>
                     )}
 
                     <div className="flex justify-between pt-2 border-t border-gray-200 font-semibold text-gray-900">
                       <span>Grand Total</span>
+
                       <span>
                         {formatCurrency(
                           purchase.grandTotal
