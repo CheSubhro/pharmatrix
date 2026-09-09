@@ -32,6 +32,18 @@ interface Rack {
   isActive: boolean;
 }
 
+interface Customer {
+  _id: string;
+  customerName: string;
+  phone: string;
+  email?: string;
+  address?: string;
+  dateOfBirth?: string;
+  gender?: "MALE" | "FEMALE" | "OTHER";
+  notes?: string;
+  isActive: boolean;
+}
+
 interface CartItem {
   medicine: Medicine;
   quantity: number;
@@ -47,25 +59,34 @@ export default function SalesPage() {
 
   const [loading, setLoading] = useState(true);
   const [racksLoading, setRacksLoading] = useState(true);
-
   const [error, setError] = useState("");
 
   const [selectedMedicine, setSelectedMedicine] =
     useState<Medicine | null>(null);
 
   const [quantity, setQuantity] = useState(1);
-
   const [cart, setCart] = useState<CartItem[]>([]);
-
   const [discount, setDiscount] = useState(0);
 
-  // Step 7.6 - CASH payment
+  // Step 8.3 - Customer
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [selectedCustomer, setSelectedCustomer] =
+    useState<Customer | null>(null);
+  const [customersLoading, setCustomersLoading] =
+    useState(true);
+
+  // CASH payment
   const [amountReceived, setAmountReceived] = useState(0);
 
-  // Step 7.7 - Complete Sale loading
-  const [completingSale, setCompletingSale] = useState(false);
+  // Complete Sale loading
+  const [completingSale, setCompletingSale] =
+    useState(false);
 
+  // -----------------------------
   // Fetch medicines
+  // -----------------------------
+
   const fetchMedicines = async () => {
     try {
       setLoading(true);
@@ -83,7 +104,6 @@ export default function SalesPage() {
       setMedicines(data.medicines || []);
     } catch (err) {
       console.error(err);
-
       setError("Failed to load medicines");
       toast.error("Failed to load medicines");
     } finally {
@@ -91,7 +111,10 @@ export default function SalesPage() {
     }
   };
 
+  // -----------------------------
   // Fetch racks
+  // -----------------------------
+
   const fetchRacks = async () => {
     try {
       setRacksLoading(true);
@@ -108,19 +131,48 @@ export default function SalesPage() {
       setRacks(data.racks || []);
     } catch (err) {
       console.error(err);
-
       toast.error("Failed to load racks");
     } finally {
       setRacksLoading(false);
     }
   };
 
+  // -----------------------------
+  // Fetch customers
+  // -----------------------------
+
+  const fetchCustomers = async () => {
+    try {
+      setCustomersLoading(true);
+
+      const response = await fetch("/api/customers");
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.message || "Failed to fetch customers"
+        );
+      }
+
+      setCustomers(data.customers || []);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load customers");
+    } finally {
+      setCustomersLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchMedicines();
     fetchRacks();
+    fetchCustomers();
   }, []);
 
+  // -----------------------------
   // Rack display
+  // -----------------------------
+
   const getRackDisplay = (rackId?: string) => {
     if (!rackId) {
       return "-";
@@ -137,7 +189,10 @@ export default function SalesPage() {
     return `${rack.name} (${rack.code})`;
   };
 
+  // -----------------------------
   // Medicine search
+  // -----------------------------
+
   const filteredMedicines = useMemo(() => {
     const query = search.trim().toLowerCase();
 
@@ -158,12 +213,47 @@ export default function SalesPage() {
       ]
         .filter(Boolean)
         .some((value) =>
-          String(value).toLowerCase().includes(query)
+          String(value)
+            .toLowerCase()
+            .includes(query)
         );
     });
   }, [medicines, search]);
 
+  // -----------------------------
+  // Customer search
+  // -----------------------------
+
+  const filteredCustomers = useMemo(() => {
+    const query = customerSearch
+      .trim()
+      .toLowerCase();
+
+    if (!query) {
+      return customers.slice(0, 8);
+    }
+
+    return customers
+      .filter((customer) => {
+        return [
+          customer.customerName,
+          customer.phone,
+          customer.email,
+        ]
+          .filter(Boolean)
+          .some((value) =>
+            String(value)
+              .toLowerCase()
+              .includes(query)
+          );
+      })
+      .slice(0, 8);
+  }, [customers, customerSearch]);
+
+  // -----------------------------
   // Select medicine
+  // -----------------------------
+
   const handleSelectMedicine = (
     medicine: Medicine
   ) => {
@@ -171,7 +261,31 @@ export default function SalesPage() {
     setQuantity(1);
   };
 
+  // -----------------------------
+  // Select customer
+  // -----------------------------
+
+  const handleSelectCustomer = (
+    customer: Customer
+  ) => {
+    setSelectedCustomer(customer);
+    setCustomerSearch("");
+  };
+
+  // -----------------------------
+  // Remove customer
+  // -----------------------------
+
+  const handleRemoveCustomer = () => {
+    setSelectedCustomer(null);
+    setCustomerSearch("");
+    toast.success("Customer removed from bill");
+  };
+
+  // -----------------------------
   // Add medicine to cart
+  // -----------------------------
+
   const handleAddToCart = () => {
     if (!selectedMedicine) {
       toast.error("Please select a medicine");
@@ -186,15 +300,18 @@ export default function SalesPage() {
     setCart((currentCart) => {
       const existingItem = currentCart.find(
         (item) =>
-          item.medicine._id === selectedMedicine._id
+          item.medicine._id ===
+          selectedMedicine._id
       );
 
       if (existingItem) {
         return currentCart.map((item) =>
-          item.medicine._id === selectedMedicine._id
+          item.medicine._id ===
+          selectedMedicine._id
             ? {
                 ...item,
-                quantity: item.quantity + quantity,
+                quantity:
+                  item.quantity + quantity,
               }
             : item
         );
@@ -216,7 +333,10 @@ export default function SalesPage() {
     setQuantity(1);
   };
 
+  // -----------------------------
   // Increase quantity
+  // -----------------------------
+
   const increaseQuantity = (
     medicineId: string
   ) => {
@@ -232,7 +352,10 @@ export default function SalesPage() {
     );
   };
 
+  // -----------------------------
   // Decrease quantity
+  // -----------------------------
+
   const decreaseQuantity = (
     medicineId: string
   ) => {
@@ -250,7 +373,10 @@ export default function SalesPage() {
     );
   };
 
+  // -----------------------------
   // Remove item
+  // -----------------------------
+
   const removeFromCart = (
     medicineId: string
   ) => {
@@ -261,24 +387,38 @@ export default function SalesPage() {
       )
     );
 
-    toast.success("Medicine removed from cart");
+    toast.success(
+      "Medicine removed from cart"
+    );
   };
 
+  // -----------------------------
   // Clear cart
+  // -----------------------------
+
   const clearCart = () => {
     setCart([]);
     setDiscount(0);
     setAmountReceived(0);
   };
 
+  // -----------------------------
   // Item total
-  const getItemTotal = (item: CartItem) => {
+  // -----------------------------
+
+  const getItemTotal = (
+    item: CartItem
+  ) => {
     return (
-      item.quantity * item.medicine.sellingPrice
+      item.quantity *
+      item.medicine.sellingPrice
     );
   };
 
+  // -----------------------------
   // Subtotal
+  // -----------------------------
+
   const subtotal = useMemo(() => {
     return cart.reduce(
       (sum, item) =>
@@ -287,7 +427,10 @@ export default function SalesPage() {
     );
   }, [cart]);
 
+  // -----------------------------
   // Cart item count
+  // -----------------------------
+
   const cartItemCount = useMemo(() => {
     return cart.reduce(
       (sum, item) =>
@@ -296,7 +439,10 @@ export default function SalesPage() {
     );
   }, [cart]);
 
+  // -----------------------------
   // Discount
+  // -----------------------------
+
   const handleDiscountChange = (
     value: string
   ) => {
@@ -315,13 +461,19 @@ export default function SalesPage() {
     setDiscount(safeDiscount);
   };
 
+  // -----------------------------
   // Net amount before tax
+  // -----------------------------
+
   const netBeforeTax = Math.max(
     0,
     subtotal - discount
   );
 
+  // -----------------------------
   // Tax calculation
+  // -----------------------------
+
   const cartTaxDetails = useMemo(() => {
     if (subtotal <= 0) {
       return cart.map((item) => ({
@@ -361,7 +513,10 @@ export default function SalesPage() {
     });
   }, [cart, subtotal, discount]);
 
+  // -----------------------------
   // Total tax
+  // -----------------------------
+
   const totalTax = useMemo(() => {
     return cartTaxDetails.reduce(
       (sum, item) =>
@@ -370,12 +525,18 @@ export default function SalesPage() {
     );
   }, [cartTaxDetails]);
 
+  // -----------------------------
   // Grand total
+  // -----------------------------
+
   const grandTotal = useMemo(() => {
     return netBeforeTax + totalTax;
   }, [netBeforeTax, totalTax]);
 
+  // -----------------------------
   // CASH payment status
+  // -----------------------------
+
   const paymentStatus = useMemo(() => {
     if (
       amountReceived >= grandTotal &&
@@ -391,19 +552,28 @@ export default function SalesPage() {
     return "PENDING";
   }, [amountReceived, grandTotal]);
 
+  // -----------------------------
   // Amount due
+  // -----------------------------
+
   const amountDue = Math.max(
     0,
     grandTotal - amountReceived
   );
 
+  // -----------------------------
   // Change due
+  // -----------------------------
+
   const changeDue = Math.max(
     0,
     amountReceived - grandTotal
   );
 
+  // -----------------------------
   // Amount received change
+  // -----------------------------
+
   const handleAmountReceivedChange = (
     value: string
   ) => {
@@ -419,7 +589,10 @@ export default function SalesPage() {
     );
   };
 
-  // Step 7.7 - Complete Sale
+  // -----------------------------
+  // Complete Sale
+  // -----------------------------
+
   const handleCompleteSale = async () => {
     if (cart.length === 0) {
       toast.error("Cart is empty");
@@ -472,14 +645,26 @@ export default function SalesPage() {
               "application/json",
           },
           body: JSON.stringify({
+            customer:
+              selectedCustomer?._id ||
+              undefined,
+
             items: saleItems,
+
             subtotal,
+
             discount,
+
             tax: totalTax,
+
             grandTotal,
+
             paymentMethod: "CASH",
+
             paymentStatus: "PAID",
+
             status: "COMPLETED",
+
             saleDate:
               new Date().toISOString(),
           }),
@@ -502,7 +687,6 @@ export default function SalesPage() {
         `Sale ${data.sale.billNumber} completed successfully`
       );
 
-      // Step 7.8 - Open Bill View
       router.push(
         `/sales/${data.sale._id}`
       );
@@ -679,9 +863,7 @@ export default function SalesPage() {
 
                 <p className="mt-1 text-sm text-gray-500">
                   {cartItemCount} item
-                  {cartItemCount !== 1
-                    ? "s"
-                    : ""}
+                  {cartItemCount !== 1 ? "s" : ""}
                 </p>
               </div>
 
@@ -937,8 +1119,7 @@ export default function SalesPage() {
                     </div>
 
                     <div className="mt-1 font-medium text-gray-900">
-                      {selectedMedicine.company ||
-                        "-"}
+                      {selectedMedicine.company || "-"}
                     </div>
                   </div>
 
@@ -948,8 +1129,7 @@ export default function SalesPage() {
                     </div>
 
                     <div className="mt-1 font-medium text-gray-900">
-                      {selectedMedicine.strength ||
-                        "-"}
+                      {selectedMedicine.strength || "-"}
                     </div>
                   </div>
 
@@ -973,8 +1153,7 @@ export default function SalesPage() {
                     </div>
 
                     <div className="mt-1 font-medium text-gray-900">
-                      {selectedMedicine.shelf ||
-                        "-"}
+                      {selectedMedicine.shelf || "-"}
                     </div>
                   </div>
 
@@ -1015,9 +1194,7 @@ export default function SalesPage() {
                       setQuantity(
                         Math.max(
                           1,
-                          Number(
-                            e.target.value
-                          ) || 1
+                          Number(e.target.value) || 1
                         )
                       )
                     }
@@ -1036,7 +1213,132 @@ export default function SalesPage() {
             )}
           </div>
 
-          {/* Payment - Step 7.6 */}
+          {/* Customer - Step 8.3 */}
+          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="mb-5">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Customer
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-500">
+                Select a customer for this bill.
+                Leave empty for walk-in customer.
+              </p>
+            </div>
+
+            {!selectedCustomer ? (
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={customerSearch}
+                  onChange={(e) =>
+                    setCustomerSearch(
+                      e.target.value
+                    )
+                  }
+                  placeholder="Search customer by name or phone..."
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-black"
+                />
+
+                {customersLoading ? (
+                  <div className="py-5 text-center text-sm text-gray-500">
+                    Loading customers...
+                  </div>
+                ) : filteredCustomers.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-gray-300 py-5 text-center">
+                    <p className="text-sm text-gray-500">
+                      No customers found
+                    </p>
+
+                    {customerSearch.trim() && (
+                      <p className="mt-1 text-xs text-gray-400">
+                        Try another name or phone number.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-200">
+                    {filteredCustomers.map(
+                      (customer) => (
+                        <button
+                          key={customer._id}
+                          type="button"
+                          onClick={() =>
+                            handleSelectCustomer(
+                              customer
+                            )
+                          }
+                          className="block w-full border-b border-gray-100 px-3 py-3 text-left last:border-0 hover:bg-gray-50"
+                        >
+                          <div className="font-medium text-gray-900">
+                            {customer.customerName}
+                          </div>
+
+                          <div className="mt-1 text-xs text-gray-500">
+                            {customer.phone}
+                          </div>
+
+                          {customer.email && (
+                            <div className="text-xs text-gray-400">
+                              {customer.email}
+                            </div>
+                          )}
+                        </button>
+                      )
+                    )}
+                  </div>
+                )}
+
+                {!customerSearch.trim() &&
+                  !customersLoading &&
+                  customers.length === 0 && (
+                    <p className="text-xs text-gray-400">
+                      No active customers available.
+                    </p>
+                  )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-xs text-gray-500">
+                        Selected Customer
+                      </div>
+
+                      <div className="mt-1 text-base font-semibold text-gray-900">
+                        {selectedCustomer.customerName}
+                      </div>
+
+                      <div className="mt-1 text-sm text-gray-600">
+                        {selectedCustomer.phone}
+                      </div>
+
+                      {selectedCustomer.email && (
+                        <div className="mt-1 text-xs text-gray-500">
+                          {selectedCustomer.email}
+                        </div>
+                      )}
+                    </div>
+
+                    <span className="rounded-full bg-black px-3 py-1 text-xs font-medium text-white">
+                      Selected
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleRemoveCustomer}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Remove Customer
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Payment */}
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <div className="mb-5">
               <h2 className="text-lg font-semibold text-gray-900">
@@ -1114,8 +1416,7 @@ export default function SalesPage() {
                   className={`rounded-full px-3 py-1 text-xs font-semibold ${
                     paymentStatus === "PAID"
                       ? "bg-green-100 text-green-700"
-                      : paymentStatus ===
-                        "PARTIAL"
+                      : paymentStatus === "PARTIAL"
                       ? "bg-yellow-100 text-yellow-700"
                       : "bg-gray-100 text-gray-600"
                   }`}
@@ -1125,8 +1426,7 @@ export default function SalesPage() {
               </div>
 
               {/* Due / Change */}
-              {amountReceived <
-                grandTotal &&
+              {amountReceived < grandTotal &&
               grandTotal > 0 ? (
                 <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
                   <div className="text-xs text-yellow-700">
@@ -1156,7 +1456,7 @@ export default function SalesPage() {
                 </div>
               )}
 
-              {/* Step 7.7 - Complete Sale */}
+              {/* Complete Sale */}
               <button
                 type="button"
                 onClick={handleCompleteSale}
