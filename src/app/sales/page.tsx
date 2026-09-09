@@ -41,6 +41,11 @@ interface Customer {
   dateOfBirth?: string;
   gender?: "MALE" | "FEMALE" | "OTHER";
   notes?: string;
+
+  // Customer Discount
+  discountType?: "NONE" | "PERCENTAGE" | "FIXED";
+  discountValue?: number;
+
   isActive: boolean;
 }
 
@@ -54,9 +59,7 @@ export default function SalesPage() {
 
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [racks, setRacks] = useState<Rack[]>([]);
-
   const [search, setSearch] = useState("");
-
   const [loading, setLoading] = useState(true);
   const [racksLoading, setRacksLoading] = useState(true);
   const [error, setError] = useState("");
@@ -68,7 +71,7 @@ export default function SalesPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [discount, setDiscount] = useState(0);
 
-  // Step 8.3 - Customer
+  // Customer
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerSearch, setCustomerSearch] = useState("");
   const [selectedCustomer, setSelectedCustomer] =
@@ -86,7 +89,6 @@ export default function SalesPage() {
   // -----------------------------
   // Fetch medicines
   // -----------------------------
-
   const fetchMedicines = async () => {
     try {
       setLoading(true);
@@ -114,7 +116,6 @@ export default function SalesPage() {
   // -----------------------------
   // Fetch racks
   // -----------------------------
-
   const fetchRacks = async () => {
     try {
       setRacksLoading(true);
@@ -140,7 +141,6 @@ export default function SalesPage() {
   // -----------------------------
   // Fetch customers
   // -----------------------------
-
   const fetchCustomers = async () => {
     try {
       setCustomersLoading(true);
@@ -172,7 +172,6 @@ export default function SalesPage() {
   // -----------------------------
   // Rack display
   // -----------------------------
-
   const getRackDisplay = (rackId?: string) => {
     if (!rackId) {
       return "-";
@@ -192,7 +191,6 @@ export default function SalesPage() {
   // -----------------------------
   // Medicine search
   // -----------------------------
-
   const filteredMedicines = useMemo(() => {
     const query = search.trim().toLowerCase();
 
@@ -223,7 +221,6 @@ export default function SalesPage() {
   // -----------------------------
   // Customer search
   // -----------------------------
-
   const filteredCustomers = useMemo(() => {
     const query = customerSearch
       .trim()
@@ -253,7 +250,6 @@ export default function SalesPage() {
   // -----------------------------
   // Select medicine
   // -----------------------------
-
   const handleSelectMedicine = (
     medicine: Medicine
   ) => {
@@ -264,7 +260,6 @@ export default function SalesPage() {
   // -----------------------------
   // Select customer
   // -----------------------------
-
   const handleSelectCustomer = (
     customer: Customer
   ) => {
@@ -275,17 +270,17 @@ export default function SalesPage() {
   // -----------------------------
   // Remove customer
   // -----------------------------
-
   const handleRemoveCustomer = () => {
     setSelectedCustomer(null);
     setCustomerSearch("");
+    setDiscount(0);
+
     toast.success("Customer removed from bill");
   };
 
   // -----------------------------
   // Add medicine to cart
   // -----------------------------
-
   const handleAddToCart = () => {
     if (!selectedMedicine) {
       toast.error("Please select a medicine");
@@ -336,7 +331,6 @@ export default function SalesPage() {
   // -----------------------------
   // Increase quantity
   // -----------------------------
-
   const increaseQuantity = (
     medicineId: string
   ) => {
@@ -355,7 +349,6 @@ export default function SalesPage() {
   // -----------------------------
   // Decrease quantity
   // -----------------------------
-
   const decreaseQuantity = (
     medicineId: string
   ) => {
@@ -376,7 +369,6 @@ export default function SalesPage() {
   // -----------------------------
   // Remove item
   // -----------------------------
-
   const removeFromCart = (
     medicineId: string
   ) => {
@@ -395,7 +387,6 @@ export default function SalesPage() {
   // -----------------------------
   // Clear cart
   // -----------------------------
-
   const clearCart = () => {
     setCart([]);
     setDiscount(0);
@@ -405,7 +396,6 @@ export default function SalesPage() {
   // -----------------------------
   // Item total
   // -----------------------------
-
   const getItemTotal = (
     item: CartItem
   ) => {
@@ -418,7 +408,6 @@ export default function SalesPage() {
   // -----------------------------
   // Subtotal
   // -----------------------------
-
   const subtotal = useMemo(() => {
     return cart.reduce(
       (sum, item) =>
@@ -430,7 +419,6 @@ export default function SalesPage() {
   // -----------------------------
   // Cart item count
   // -----------------------------
-
   const cartItemCount = useMemo(() => {
     return cart.reduce(
       (sum, item) =>
@@ -440,9 +428,68 @@ export default function SalesPage() {
   }, [cart]);
 
   // -----------------------------
-  // Discount
+  // Calculate customer discount
   // -----------------------------
+  const calculateCustomerDiscount = (
+    customer: Customer | null,
+    currentSubtotal: number
+  ) => {
+    if (
+      !customer ||
+      currentSubtotal <= 0
+    ) {
+      return 0;
+    }
 
+    const type =
+      customer.discountType || "NONE";
+
+    const value = Number(
+      customer.discountValue || 0
+    );
+
+    if (!Number.isFinite(value) || value <= 0) {
+      return 0;
+    }
+
+    if (type === "PERCENTAGE") {
+      return Math.min(
+        currentSubtotal,
+        (currentSubtotal * value) / 100
+      );
+    }
+
+    if (type === "FIXED") {
+      return Math.min(
+        currentSubtotal,
+        value
+      );
+    }
+
+    return 0;
+  };
+
+  // -----------------------------
+  // Auto apply customer discount
+  // -----------------------------
+  useEffect(() => {
+    if (!selectedCustomer) {
+      setDiscount(0);
+      return;
+    }
+
+    const customerDiscount =
+      calculateCustomerDiscount(
+        selectedCustomer,
+        subtotal
+      );
+
+    setDiscount(customerDiscount);
+  }, [selectedCustomer, subtotal]);
+
+  // -----------------------------
+  // Manual Discount Change
+  // -----------------------------
   const handleDiscountChange = (
     value: string
   ) => {
@@ -462,9 +509,44 @@ export default function SalesPage() {
   };
 
   // -----------------------------
+  // Customer discount label
+  // -----------------------------
+  const customerDiscountLabel =
+    useMemo(() => {
+      if (!selectedCustomer) {
+        return "";
+      }
+
+      const type =
+        selectedCustomer.discountType ||
+        "NONE";
+
+      const value = Number(
+        selectedCustomer.discountValue || 0
+      );
+
+      if (
+        type === "PERCENTAGE" &&
+        value > 0
+      ) {
+        return `${value}% customer discount`;
+      }
+
+      if (
+        type === "FIXED" &&
+        value > 0
+      ) {
+        return `₹${value.toFixed(
+          2
+        )} customer discount`;
+      }
+
+      return "No customer discount";
+    }, [selectedCustomer]);
+
+  // -----------------------------
   // Net amount before tax
   // -----------------------------
-
   const netBeforeTax = Math.max(
     0,
     subtotal - discount
@@ -473,7 +555,6 @@ export default function SalesPage() {
   // -----------------------------
   // Tax calculation
   // -----------------------------
-
   const cartTaxDetails = useMemo(() => {
     if (subtotal <= 0) {
       return cart.map((item) => ({
@@ -516,7 +597,6 @@ export default function SalesPage() {
   // -----------------------------
   // Total tax
   // -----------------------------
-
   const totalTax = useMemo(() => {
     return cartTaxDetails.reduce(
       (sum, item) =>
@@ -528,7 +608,6 @@ export default function SalesPage() {
   // -----------------------------
   // Grand total
   // -----------------------------
-
   const grandTotal = useMemo(() => {
     return netBeforeTax + totalTax;
   }, [netBeforeTax, totalTax]);
@@ -536,7 +615,6 @@ export default function SalesPage() {
   // -----------------------------
   // CASH payment status
   // -----------------------------
-
   const paymentStatus = useMemo(() => {
     if (
       amountReceived >= grandTotal &&
@@ -555,7 +633,6 @@ export default function SalesPage() {
   // -----------------------------
   // Amount due
   // -----------------------------
-
   const amountDue = Math.max(
     0,
     grandTotal - amountReceived
@@ -564,7 +641,6 @@ export default function SalesPage() {
   // -----------------------------
   // Change due
   // -----------------------------
-
   const changeDue = Math.max(
     0,
     amountReceived - grandTotal
@@ -573,7 +649,6 @@ export default function SalesPage() {
   // -----------------------------
   // Amount received change
   // -----------------------------
-
   const handleAmountReceivedChange = (
     value: string
   ) => {
@@ -592,7 +667,6 @@ export default function SalesPage() {
   // -----------------------------
   // Complete Sale
   // -----------------------------
-
   const handleCompleteSale = async () => {
     if (cart.length === 0) {
       toast.error("Cart is empty");
@@ -648,23 +722,14 @@ export default function SalesPage() {
             customer:
               selectedCustomer?._id ||
               undefined,
-
             items: saleItems,
-
             subtotal,
-
             discount,
-
             tax: totalTax,
-
             grandTotal,
-
             paymentMethod: "CASH",
-
             paymentStatus: "PAID",
-
             status: "COMPLETED",
-
             saleDate:
               new Date().toISOString(),
           }),
@@ -1020,9 +1085,18 @@ export default function SalesPage() {
                   </div>
 
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">
-                      Discount
-                    </span>
+                    <div>
+                      <span className="text-gray-500">
+                        Discount
+                      </span>
+
+                      {selectedCustomer &&
+                        customerDiscountLabel && (
+                          <div className="mt-0.5 text-xs text-gray-400">
+                            {customerDiscountLabel}
+                          </div>
+                        )}
+                    </div>
 
                     <div className="flex items-center">
                       <span className="mr-1 text-gray-500">
@@ -1213,7 +1287,7 @@ export default function SalesPage() {
             )}
           </div>
 
-          {/* Customer - Step 8.3 */}
+          {/* Customer */}
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <div className="mb-5">
               <h2 className="text-lg font-semibold text-gray-900">
@@ -1283,6 +1357,33 @@ export default function SalesPage() {
                               {customer.email}
                             </div>
                           )}
+
+                          {customer.discountType ===
+                            "PERCENTAGE" &&
+                            Number(
+                              customer.discountValue || 0
+                            ) > 0 && (
+                              <div className="mt-1 text-xs font-medium text-green-600">
+                                {
+                                  customer.discountValue
+                                }
+                                % discount
+                              </div>
+                            )}
+
+                          {customer.discountType ===
+                            "FIXED" &&
+                            Number(
+                              customer.discountValue || 0
+                            ) > 0 && (
+                              <div className="mt-1 text-xs font-medium text-green-600">
+                                ₹
+                                {Number(
+                                  customer.discountValue
+                                ).toFixed(2)}{" "}
+                                discount
+                              </div>
+                            )}
                         </button>
                       )
                     )}
@@ -1319,6 +1420,10 @@ export default function SalesPage() {
                           {selectedCustomer.email}
                         </div>
                       )}
+
+                      <div className="mt-3 text-xs font-medium text-gray-600">
+                        {customerDiscountLabel}
+                      </div>
                     </div>
 
                     <span className="rounded-full bg-black px-3 py-1 text-xs font-medium text-white">
