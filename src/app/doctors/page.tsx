@@ -4,6 +4,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 interface Doctor {
@@ -22,6 +23,7 @@ interface Doctor {
 }
 
 export default function DoctorsPage() {
+  const router = useRouter();
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -377,6 +379,8 @@ export default function DoctorsPage() {
                             ? "..."
                             : "Deactivate"}
                         </button>
+
+                        <button type="button" onClick={() => router.push( `/doctors/${doctor._id}/schedules` ) } className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50" > Schedule </button>
                       </div>
                     </td>
                   </tr>
