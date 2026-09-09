@@ -18,6 +18,7 @@ export interface ISaleItem {
 export interface ISale extends Document {
   billNumber: string;
 
+  customer?: mongoose.Types.ObjectId;
   customerName?: string;
   customerPhone?: string;
 
@@ -30,11 +31,9 @@ export interface ISale extends Document {
 
   paymentMethod: "CASH" | "UPI" | "CARD" | "CREDIT";
   paymentStatus: "PAID" | "PENDING" | "PARTIAL";
-
   status: "DRAFT" | "COMPLETED" | "CANCELLED";
 
   saleDate: Date;
-
   note?: string;
 }
 
@@ -110,6 +109,11 @@ const SaleSchema = new Schema<ISale>(
       required: true,
       unique: true,
       trim: true,
+    },
+
+    customer: {
+      type: Schema.Types.ObjectId,
+      ref: "Customer",
     },
 
     customerName: {
@@ -194,17 +198,10 @@ const SaleSchema = new Schema<ISale>(
   }
 );
 
-SaleSchema.index({
-  billNumber: 1,
-});
-
-SaleSchema.index({
-  saleDate: -1,
-});
-
-SaleSchema.index({
-  status: 1,
-});
+SaleSchema.index({ billNumber: 1 });
+SaleSchema.index({ saleDate: -1 });
+SaleSchema.index({ status: 1 });
+SaleSchema.index({ customer: 1 });
 
 const Sale: Model<ISale> =
   mongoose.models.Sale ||
