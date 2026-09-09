@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-import connectDB from "@/lib/mongodb";
+import {connectDB} from "@/lib/mongodb";
 import Purchase from "@/models/Purchase";
 
 function getDateRange(
