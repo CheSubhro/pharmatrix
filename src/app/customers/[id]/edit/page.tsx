@@ -7,14 +7,16 @@ import {
   useEffect,
   useState,
 } from "react";
+
 import { useParams, useRouter } from "next/navigation";
+
 import { toast } from "sonner";
+
 import { ArrowLeft, Save } from "lucide-react";
 
 export default function EditCustomerPage() {
   const params = useParams();
   const router = useRouter();
-
   const customerId = params.id as string;
 
   const [loading, setLoading] = useState(true);
@@ -28,6 +30,8 @@ export default function EditCustomerPage() {
     dateOfBirth: "",
     gender: "",
     notes: "",
+    discountType: "NONE",
+    discountValue: "",
   });
 
   const fetchCustomer = async () => {
@@ -60,6 +64,13 @@ export default function EditCustomerPage() {
           : "",
         gender: customer.gender || "",
         notes: customer.notes || "",
+        discountType:
+          customer.discountType || "NONE",
+        discountValue:
+          customer.discountValue !== undefined &&
+          customer.discountValue !== null
+            ? String(customer.discountValue)
+            : "",
       });
     } catch (error) {
       console.error(error);
@@ -102,6 +113,27 @@ export default function EditCustomerPage() {
       return;
     }
 
+    const discountValue = Number(
+      form.discountValue || 0
+    );
+
+    if (discountValue < 0) {
+      toast.error(
+        "Discount value cannot be negative"
+      );
+      return;
+    }
+
+    if (
+      form.discountType === "PERCENTAGE" &&
+      discountValue > 100
+    ) {
+      toast.error(
+        "Percentage discount cannot be more than 100%"
+      );
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -113,14 +145,32 @@ export default function EditCustomerPage() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            customerName: form.customerName.trim(),
+            customerName:
+              form.customerName.trim(),
+
             phone: form.phone.trim(),
-            email: form.email.trim() || undefined,
-            address: form.address.trim() || undefined,
+
+            email:
+              form.email.trim() || undefined,
+
+            address:
+              form.address.trim() || undefined,
+
             dateOfBirth:
               form.dateOfBirth || undefined,
-            gender: form.gender || undefined,
-            notes: form.notes.trim() || undefined,
+
+            gender:
+              form.gender || undefined,
+
+            notes:
+              form.notes.trim() || undefined,
+
+            discountType: form.discountType,
+
+            discountValue:
+              form.discountType === "NONE"
+                ? 0
+                : discountValue,
           }),
         }
       );
@@ -129,7 +179,8 @@ export default function EditCustomerPage() {
 
       if (!response.ok || !data.success) {
         throw new Error(
-          data.message || "Failed to update customer"
+          data.message ||
+            "Failed to update customer"
         );
       }
 
@@ -204,7 +255,8 @@ export default function EditCustomerPage() {
               onChange={(event) =>
                 setForm({
                   ...form,
-                  customerName: event.target.value,
+                  customerName:
+                    event.target.value,
                 })
               }
               placeholder="Enter customer name"
@@ -227,10 +279,11 @@ export default function EditCustomerPage() {
               onChange={(event) =>
                 setForm({
                   ...form,
-                  phone: event.target.value.replace(
-                    /\D/g,
-                    ""
-                  ),
+                  phone:
+                    event.target.value.replace(
+                      /\D/g,
+                      ""
+                    ),
                 })
               }
               placeholder="10 digit phone number"
@@ -270,7 +323,8 @@ export default function EditCustomerPage() {
               onChange={(event) =>
                 setForm({
                   ...form,
-                  dateOfBirth: event.target.value,
+                  dateOfBirth:
+                    event.target.value,
                 })
               }
               className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-black focus:ring-1 focus:ring-black"
@@ -297,10 +351,130 @@ export default function EditCustomerPage() {
                 Select gender
               </option>
 
-              <option value="MALE">Male</option>
-              <option value="FEMALE">Female</option>
-              <option value="OTHER">Other</option>
+              <option value="MALE">
+                Male
+              </option>
+
+              <option value="FEMALE">
+                Female
+              </option>
+
+              <option value="OTHER">
+                Other
+              </option>
             </select>
+          </div>
+
+          {/* Discount Type */}
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              Discount Type
+            </label>
+
+            <select
+              value={form.discountType}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  discountType:
+                    event.target.value,
+                  discountValue:
+                    event.target.value ===
+                    "NONE"
+                      ? ""
+                      : form.discountValue,
+                })
+              }
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-black focus:ring-1 focus:ring-black"
+            >
+              <option value="NONE">
+                No Discount
+              </option>
+
+              <option value="PERCENTAGE">
+                Percentage (%)
+              </option>
+
+              <option value="FIXED">
+                Fixed Amount (₹)
+              </option>
+            </select>
+          </div>
+
+          {/* Discount Value */}
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              Discount Value
+            </label>
+
+            <div className="relative">
+              {form.discountType ===
+                "FIXED" && (
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
+                  ₹
+                </span>
+              )}
+
+              <input
+                type="number"
+                min="0"
+                max={
+                  form.discountType ===
+                  "PERCENTAGE"
+                    ? "100"
+                    : undefined
+                }
+                step="0.01"
+                disabled={
+                  form.discountType ===
+                  "NONE"
+                }
+                value={form.discountValue}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    discountValue:
+                      event.target.value,
+                  })
+                }
+                placeholder={
+                  form.discountType ===
+                  "PERCENTAGE"
+                    ? "e.g. 10"
+                    : form.discountType ===
+                      "FIXED"
+                    ? "e.g. 100"
+                    : "No discount"
+                }
+                className={`w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-black focus:ring-1 focus:ring-black ${
+                  form.discountType ===
+                  "FIXED"
+                    ? "pl-8"
+                    : ""
+                } ${
+                  form.discountType ===
+                  "NONE"
+                    ? "cursor-not-allowed bg-gray-100 text-gray-400"
+                    : ""
+                }`}
+              />
+            </div>
+
+            {form.discountType ===
+              "PERCENTAGE" && (
+              <p className="mt-1 text-xs text-gray-400">
+                Enter percentage between 0 and
+                100
+              </p>
+            )}
+
+            {form.discountType ===
+              "FIXED" && (
+              <p className="mt-1 text-xs text-gray-400">
+                Enter fixed discount amount in
+                rupees
+              </p>
+            )}
           </div>
 
           {/* Address */}
