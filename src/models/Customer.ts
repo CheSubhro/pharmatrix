@@ -10,6 +10,11 @@ export interface ICustomer extends Document {
   dateOfBirth?: Date;
   gender?: "MALE" | "FEMALE" | "OTHER";
   notes?: string;
+
+  // Customer Discount
+  discountType?: "NONE" | "PERCENTAGE" | "FIXED";
+  discountValue?: number;
+
   isActive: boolean;
 }
 
@@ -50,6 +55,19 @@ const CustomerSchema = new Schema<ICustomer>(
     notes: {
       type: String,
       trim: true,
+    },
+
+    // Customer Discount
+    discountType: {
+      type: String,
+      enum: ["NONE", "PERCENTAGE", "FIXED"],
+      default: "NONE",
+    },
+
+    discountValue: {
+      type: Number,
+      min: 0,
+      default: 0,
     },
 
     isActive: {
