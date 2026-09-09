@@ -68,6 +68,94 @@ export async function GET(
   }
 }
 
+// DELETE - Delete prescription
+export async function DELETE(
+  request: NextRequest,
+  context: RouteContext
+) {
+  try {
+    await connectDB();
+
+    const { id } = await context.params;
+
+    const prescriptionId = request.nextUrl.searchParams.get(
+      "prescriptionId"
+    );
+
+    if (!prescriptionId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Prescription ID is required",
+        },
+        { status: 400 }
+      );
+    }
+
+    const prescription = await Prescription.findOne({
+      _id: prescriptionId,
+      customer: id,
+      isActive: true,
+    });
+
+    if (!prescription) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Prescription not found",
+        },
+        { status: 404 }
+      );
+    }
+
+    // Delete file from Cloudinary if available
+    if (prescription.filePublicId) {
+      try {
+        await cloudinary.uploader.destroy(
+          prescription.filePublicId,
+          {
+            resource_type:
+              prescription.fileType === "PDF"
+                ? "raw"
+                : "image",
+          }
+        );
+      } catch (cloudinaryError) {
+        console.error(
+          "Cloudinary delete error:",
+          cloudinaryError
+        );
+      }
+    }
+
+    // Delete prescription from database
+    await Prescription.findByIdAndDelete(
+      prescriptionId
+    );
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Prescription deleted successfully",
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error(
+      "DELETE /api/customers/[id]/prescriptions error:",
+      error
+    );
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Failed to delete prescription",
+      },
+      { status: 500 }
+    );
+  }
+}
+
 // POST - Add prescription
 export async function POST(
   request: NextRequest,
