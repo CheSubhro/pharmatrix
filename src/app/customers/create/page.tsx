@@ -1,9 +1,13 @@
 
+
 "use client";
 
 import { FormEvent, useState } from "react";
+
 import { useRouter } from "next/navigation";
+
 import { toast } from "sonner";
+
 import { ArrowLeft, Save } from "lucide-react";
 
 export default function CreateCustomerPage() {
@@ -19,6 +23,8 @@ export default function CreateCustomerPage() {
     dateOfBirth: "",
     gender: "",
     notes: "",
+    discountType: "NONE",
+    discountValue: "",
   });
 
   const handleSubmit = async (
@@ -43,6 +49,25 @@ export default function CreateCustomerPage() {
       return;
     }
 
+    const discountValue = Number(
+      form.discountValue || 0
+    );
+
+    if (discountValue < 0) {
+      toast.error("Discount value cannot be negative");
+      return;
+    }
+
+    if (
+      form.discountType === "PERCENTAGE" &&
+      discountValue > 100
+    ) {
+      toast.error(
+        "Percentage discount cannot be more than 100%"
+      );
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -60,6 +85,12 @@ export default function CreateCustomerPage() {
             form.dateOfBirth || undefined,
           gender: form.gender || undefined,
           notes: form.notes.trim() || undefined,
+
+          discountType: form.discountType,
+          discountValue:
+            form.discountType === "NONE"
+              ? 0
+              : discountValue,
         }),
       });
 
@@ -225,10 +256,117 @@ export default function CreateCustomerPage() {
                 Select gender
               </option>
 
-              <option value="MALE">Male</option>
-              <option value="FEMALE">Female</option>
-              <option value="OTHER">Other</option>
+              <option value="MALE">
+                Male
+              </option>
+
+              <option value="FEMALE">
+                Female
+              </option>
+
+              <option value="OTHER">
+                Other
+              </option>
             </select>
+          </div>
+
+          {/* Discount Type */}
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              Discount Type
+            </label>
+
+            <select
+              value={form.discountType}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  discountType: event.target.value,
+                  discountValue:
+                    event.target.value === "NONE"
+                      ? ""
+                      : form.discountValue,
+                })
+              }
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-black focus:ring-1 focus:ring-black"
+            >
+              <option value="NONE">
+                No Discount
+              </option>
+
+              <option value="PERCENTAGE">
+                Percentage (%)
+              </option>
+
+              <option value="FIXED">
+                Fixed Amount (₹)
+              </option>
+            </select>
+          </div>
+
+          {/* Discount Value */}
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              Discount Value
+            </label>
+
+            <div className="relative">
+              {form.discountType === "FIXED" && (
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
+                  ₹
+                </span>
+              )}
+
+              <input
+                type="number"
+                min="0"
+                max={
+                  form.discountType === "PERCENTAGE"
+                    ? "100"
+                    : undefined
+                }
+                step="0.01"
+                disabled={
+                  form.discountType === "NONE"
+                }
+                value={form.discountValue}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    discountValue:
+                      event.target.value,
+                  })
+                }
+                placeholder={
+                  form.discountType === "PERCENTAGE"
+                    ? "e.g. 10"
+                    : form.discountType === "FIXED"
+                    ? "e.g. 100"
+                    : "No discount"
+                }
+                className={`w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-black focus:ring-1 focus:ring-black ${
+                  form.discountType === "FIXED"
+                    ? "pl-8"
+                    : ""
+                } ${
+                  form.discountType === "NONE"
+                    ? "cursor-not-allowed bg-gray-100 text-gray-400"
+                    : ""
+                }`}
+              />
+            </div>
+
+            {form.discountType === "PERCENTAGE" && (
+              <p className="mt-1 text-xs text-gray-400">
+                Enter percentage between 0 and 100
+              </p>
+            )}
+
+            {form.discountType === "FIXED" && (
+              <p className="mt-1 text-xs text-gray-400">
+                Enter fixed discount amount in rupees
+              </p>
+            )}
           </div>
 
           {/* Address */}
