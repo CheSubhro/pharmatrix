@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -20,6 +20,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import { toast } from "sonner";
 
 interface Customer {
   _id: string;
@@ -113,6 +114,15 @@ interface PageProps {
   }>;
 }
 
+const ALLOWED_FILE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+];
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
 export default function CustomerDetailsPage({
   params,
 }: PageProps) {
@@ -129,6 +139,7 @@ export default function CustomerDetailsPage({
   const [purchases, setPurchases] = useState<Purchase[]>([]);
 
   const [loading, setLoading] = useState(true);
+
   const [error, setError] = useState("");
 
   // Prescription states
@@ -149,6 +160,7 @@ export default function CustomerDetailsPage({
     useState<string | null>(null);
 
   const [doctorName, setDoctorName] = useState("");
+
   const [prescriptionDate, setPrescriptionDate] =
     useState("");
 
@@ -158,10 +170,17 @@ export default function CustomerDetailsPage({
   const [prescriptionNotes, setPrescriptionNotes] =
     useState("");
 
+  // Resolve customer ID from params
   useEffect(() => {
     const loadParams = async () => {
-      const resolvedParams = await params;
-      setCustomerId(resolvedParams.id);
+      try {
+        const resolvedParams = await params;
+        setCustomerId(resolvedParams.id);
+      } catch (error) {
+        console.error("Failed to resolve params:", error);
+        setError("Failed to load customer details");
+        setLoading(false);
+      }
     };
 
     loadParams();
@@ -180,7 +199,15 @@ export default function CustomerDetailsPage({
           `/api/customers/${customerId}/purchases`
         );
 
-        const data: ApiResponse = await response.json();
+        let data: ApiResponse;
+
+        try {
+          data = await response.json();
+        } catch {
+          throw new Error(
+            "Server returned an invalid response"
+          );
+        }
 
         if (!response.ok || !data.success) {
           throw new Error(
@@ -191,9 +218,12 @@ export default function CustomerDetailsPage({
 
         setCustomer(data.customer);
         setSummary(data.summary);
-        setPurchases(data.purchases);
+        setPurchases(data.purchases || []);
       } catch (error) {
-        console.error(error);
+        console.error(
+          "Failed to fetch customer purchase history:",
+          error
+        );
 
         setError(
           error instanceof Error
@@ -219,8 +249,15 @@ export default function CustomerDetailsPage({
         `/api/customers/${customerId}/prescriptions`
       );
 
-      const data: PrescriptionApiResponse =
-        await response.json();
+      let data: PrescriptionApiResponse;
+
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(
+          "Server returned an invalid response"
+        );
+      }
 
       if (!response.ok || !data.success) {
         throw new Error(
@@ -234,6 +271,12 @@ export default function CustomerDetailsPage({
       console.error(
         "Failed to fetch prescriptions:",
         error
+      );
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to load prescriptions"
       );
     } finally {
       setPrescriptionLoading(false);
@@ -296,22 +339,86 @@ export default function CustomerDetailsPage({
     }
   };
 
+  // Handle prescription file selection
+  const handlePrescriptionFileChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0] || null;
+
+    if (!file) {
+      setPrescriptionFile(null);
+      return;
+    }
+
+    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+      toast.error(
+        "Invalid file type. Please upload JPG, PNG, WEBP or PDF."
+      );
+
+      event.target.value = "";
+      setPrescriptionFile(null);
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error(
+        "File size must be 10 MB or less."
+      );
+
+      event.target.value = "";
+      setPrescriptionFile(null);
+      return;
+    }
+
+    setPrescriptionFile(file);
+  };
+
+  // Reset prescription form
+  const resetPrescriptionForm = () => {
+    setDoctorName("");
+    setPrescriptionDate("");
+    setPrescriptionFile(null);
+    setPrescriptionNotes("");
+  };
+
   // Add prescription
   const handleAddPrescription = async (
-    event: React.FormEvent<HTMLFormElement>
+    event: FormEvent<HTMLFormElement>
   ) => {
     event.preventDefault();
 
-    if (!customerId) return;
+    if (!customerId) {
+      toast.error(
+        "Customer information is not available"
+      );
+      return;
+    }
 
     if (!doctorName.trim()) {
-      alert("Doctor name is required");
+      toast.error("Doctor name is required");
       return;
     }
 
     if (!prescriptionDate) {
-      alert("Prescription date is required");
+      toast.error("Prescription date is required");
       return;
+    }
+
+    // Validate file again before submission
+    if (prescriptionFile) {
+      if (!ALLOWED_FILE_TYPES.includes(prescriptionFile.type)) {
+        toast.error(
+          "Invalid file type. Please upload JPG, PNG, WEBP or PDF."
+        );
+        return;
+      }
+
+      if (prescriptionFile.size > MAX_FILE_SIZE) {
+        toast.error(
+          "File size must be 10 MB or less."
+        );
+        return;
+      }
     }
 
     try {
@@ -351,8 +458,15 @@ export default function CustomerDetailsPage({
         }
       );
 
-      const data: PrescriptionApiResponse =
-        await response.json();
+      let data: PrescriptionApiResponse;
+
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(
+          "Server returned an invalid response"
+        );
+      }
 
       if (!response.ok || !data.success) {
         throw new Error(
@@ -362,20 +476,23 @@ export default function CustomerDetailsPage({
       }
 
       // Reset form
-      setDoctorName("");
-      setPrescriptionDate("");
-      setPrescriptionFile(null);
-      setPrescriptionNotes("");
+      resetPrescriptionForm();
+
       setShowPrescriptionForm(false);
 
-      // Refresh prescriptions
+      // Refresh prescription list
       await fetchPrescriptions();
 
-      alert("Prescription added successfully");
+      toast.success(
+        "Prescription added successfully"
+      );
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Failed to add prescription:",
+        error
+      );
 
-      alert(
+      toast.error(
         error instanceof Error
           ? error.message
           : "Failed to add prescription"
@@ -385,30 +502,116 @@ export default function CustomerDetailsPage({
     }
   };
 
+  // Sonner delete confirmation
+  const confirmDeletePrescription = (
+    prescription: Prescription
+  ): Promise<boolean> => {
+    return new Promise((resolve) => {
+      let resolved = false;
+
+      const finish = (confirmed: boolean) => {
+        if (resolved) return;
+
+        resolved = true;
+        toast.dismiss(toastId);
+        resolve(confirmed);
+      };
+
+      const toastId = toast.custom(
+        () => (
+          <div className="w-[360px] max-w-[calc(100vw-32px)] bg-white border border-gray-200 rounded-xl shadow-lg p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center shrink-0">
+                <Trash2
+                  size={18}
+                  className="text-red-600"
+                />
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold text-gray-900">
+                  Delete prescription?
+                </h3>
+
+                <p className="text-sm text-gray-500 mt-1">
+                  Prescription from{" "}
+                  <span className="font-medium text-gray-700">
+                    {prescription.doctorName}
+                  </span>{" "}
+                  will be permanently removed.
+                </p>
+
+                <div className="flex items-center justify-end gap-2 mt-4">
+                  <button
+                    type="button"
+                    onClick={() => finish(false)}
+                    className="px-3.5 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => finish(true)}
+                    className="px-3.5 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ),
+        {
+          duration: Infinity,
+        }
+      );
+    });
+  };
+
   // Delete prescription
   const handleDeletePrescription = async (
-    prescriptionId: string
+    prescription: Prescription
   ) => {
-    if (!customerId) return;
+    if (!customerId) {
+      toast.error(
+        "Customer information is not available"
+      );
+      return;
+    }
 
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this prescription?"
-    );
+    const confirmed =
+      await confirmDeletePrescription(
+        prescription
+      );
 
-    if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
     try {
-      setDeletingPrescription(prescriptionId);
+      setDeletingPrescription(
+        prescription._id
+      );
 
       const response = await fetch(
-        `/api/customers/${customerId}/prescriptions?prescriptionId=${prescriptionId}`,
+        `/api/customers/${customerId}/prescriptions?prescriptionId=${encodeURIComponent(
+          prescription._id
+        )}`,
         {
           method: "DELETE",
         }
       );
 
-      const data: PrescriptionApiResponse =
-        await response.json();
+      let data: PrescriptionApiResponse;
+
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(
+          "Server returned an invalid response"
+        );
+      }
 
       if (!response.ok || !data.success) {
         throw new Error(
@@ -419,13 +622,21 @@ export default function CustomerDetailsPage({
 
       setPrescriptions((current) =>
         current.filter(
-          (item) => item._id !== prescriptionId
+          (item) =>
+            item._id !== prescription._id
         )
       );
-    } catch (error) {
-      console.error(error);
 
-      alert(
+      toast.success(
+        "Prescription deleted successfully"
+      );
+    } catch (error) {
+      console.error(
+        "Failed to delete prescription:",
+        error
+      );
+
+      toast.error(
         error instanceof Error
           ? error.message
           : "Failed to delete prescription"
@@ -510,7 +721,10 @@ export default function CustomerDetailsPage({
       <div className="bg-white border border-gray-200 rounded-xl p-6">
         <div className="flex flex-col md:flex-row md:items-start gap-5">
           <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-            <User size={28} className="text-gray-600" />
+            <User
+              size={28}
+              className="text-gray-600"
+            />
           </div>
 
           <div className="flex-1">
@@ -617,7 +831,9 @@ export default function CustomerDetailsPage({
               </p>
 
               <p className="text-lg font-semibold text-gray-900 mt-2">
-                {formatDate(summary.latestPurchaseDate)}
+                {formatDate(
+                  summary.latestPurchaseDate
+                )}
               </p>
             </div>
 
@@ -677,6 +893,7 @@ export default function CustomerDetailsPage({
               className="space-y-5"
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Doctor Name */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Doctor Name
@@ -689,13 +906,16 @@ export default function CustomerDetailsPage({
                     type="text"
                     value={doctorName}
                     onChange={(event) =>
-                      setDoctorName(event.target.value)
+                      setDoctorName(
+                        event.target.value
+                      )
                     }
                     placeholder="Enter doctor name"
                     className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:border-black focus:ring-1 focus:ring-black"
                   />
                 </div>
 
+                {/* Prescription Date */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Prescription Date
@@ -717,6 +937,7 @@ export default function CustomerDetailsPage({
                 </div>
               </div>
 
+              {/* Prescription File */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Prescription File
@@ -732,18 +953,15 @@ export default function CustomerDetailsPage({
                       <input
                         type="file"
                         accept="image/jpeg,image/png,image/webp,application/pdf"
-                        onChange={(event) =>
-                          setPrescriptionFile(
-                            event.target.files?.[0] ||
-                              null
-                          )
+                        onChange={
+                          handlePrescriptionFileChange
                         }
                         className="hidden"
                       />
                     </label>
 
                     {prescriptionFile ? (
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <div className="flex items-center gap-2 text-sm text-gray-600 min-w-0">
                         <FileText size={16} />
 
                         <span className="truncate max-w-[280px]">
@@ -756,20 +974,22 @@ export default function CustomerDetailsPage({
                             setPrescriptionFile(null)
                           }
                           className="text-gray-400 hover:text-red-600"
+                          title="Remove selected file"
                         >
                           <X size={16} />
                         </button>
                       </div>
                     ) : (
                       <p className="text-xs text-gray-500">
-                        JPG, PNG, WEBP or PDF — maximum
-                        10 MB
+                        JPG, PNG, WEBP or PDF —
+                        maximum 10 MB
                       </p>
                     )}
                   </div>
                 </div>
               </div>
 
+              {/* Notes */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Notes
@@ -788,17 +1008,16 @@ export default function CustomerDetailsPage({
                 />
               </div>
 
+              {/* Form Actions */}
               <div className="flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => {
                     setShowPrescriptionForm(false);
-                    setDoctorName("");
-                    setPrescriptionDate("");
-                    setPrescriptionFile(null);
-                    setPrescriptionNotes("");
+                    resetPrescriptionForm();
                   }}
-                  className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                  disabled={savingPrescription}
+                  className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
                 >
                   Cancel
                 </button>
@@ -848,8 +1067,8 @@ export default function CustomerDetailsPage({
             </h3>
 
             <p className="text-sm text-gray-500 mt-1">
-              No prescription records have been added
-              for this customer yet.
+              No prescription records have been
+              added for this customer yet.
             </p>
           </div>
         ) : (
@@ -876,6 +1095,7 @@ export default function CustomerDetailsPage({
                       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-2">
                         <div className="flex items-center gap-1.5 text-sm text-gray-500">
                           <CalendarDays size={15} />
+
                           {formatDate(
                             prescription.prescriptionDate
                           )}
@@ -913,7 +1133,7 @@ export default function CustomerDetailsPage({
                       type="button"
                       onClick={() =>
                         handleDeletePrescription(
-                          prescription._id
+                          prescription
                         )
                       }
                       disabled={
@@ -974,8 +1194,8 @@ export default function CustomerDetailsPage({
             </h3>
 
             <p className="text-sm text-gray-500 mt-1">
-              This customer has no completed purchases
-              yet.
+              This customer has no completed
+              purchases yet.
             </p>
           </div>
         ) : (
