@@ -66,6 +66,7 @@ export async function PUT(
     await connectDB();
 
     const { id } = await context.params;
+
     const body = await request.json();
 
     const {
@@ -76,6 +77,8 @@ export async function PUT(
       dateOfBirth,
       gender,
       notes,
+      discountType,
+      discountValue,
       isActive,
     } = body;
 
@@ -128,6 +131,7 @@ export async function PUT(
       );
     }
 
+    // Validate gender
     const allowedGenders = [
       "MALE",
       "FEMALE",
@@ -147,31 +151,101 @@ export async function PUT(
       );
     }
 
+    // Validate discount type
+    const allowedDiscountTypes = [
+      "NONE",
+      "PERCENTAGE",
+      "FIXED",
+    ];
+
+    const finalDiscountType =
+      discountType || "NONE";
+
+    if (
+      !allowedDiscountTypes.includes(
+        finalDiscountType
+      )
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid discount type",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate discount value
+    const finalDiscountValue =
+      Number(discountValue || 0);
+
+    if (
+      !Number.isFinite(finalDiscountValue) ||
+      finalDiscountValue < 0
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Discount value must be a valid positive number",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (
+      finalDiscountType === "PERCENTAGE" &&
+      finalDiscountValue > 100
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Percentage discount cannot be more than 100%",
+        },
+        { status: 400 }
+      );
+    }
+
     const customer =
       await Customer.findByIdAndUpdate(
         id,
         {
           customerName: customerName.trim(),
+
           phone: cleanPhone,
+
           email:
             typeof email === "string" &&
             email.trim()
               ? email.trim()
               : undefined,
+
           address:
             typeof address === "string" &&
             address.trim()
               ? address.trim()
               : undefined,
+
           dateOfBirth: dateOfBirth
             ? new Date(dateOfBirth)
             : undefined,
+
           gender,
+
           notes:
             typeof notes === "string" &&
             notes.trim()
               ? notes.trim()
               : undefined,
+
+          discountType: finalDiscountType,
+
+          discountValue:
+            finalDiscountType === "NONE"
+              ? 0
+              : finalDiscountValue,
+
           ...(typeof isActive === "boolean"
             ? { isActive }
             : {}),

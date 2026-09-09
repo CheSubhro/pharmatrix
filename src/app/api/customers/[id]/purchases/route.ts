@@ -23,7 +23,9 @@ export async function GET(
 
     // Check customer
     const customer = await Customer.findById(id)
-      .select("customerName phone email address")
+      .select(
+          "customerName phone email address discountType discountValue"
+      )
       .lean();
 
     if (!customer) {
