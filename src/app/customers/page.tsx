@@ -301,7 +301,7 @@ export default function CustomersPage() {
 
                         <div>
                           <div className="font-semibold text-gray-900">
-                            {customer.customerName}
+                            <Link href={`/customers/${customer._id}`} className="font-semibold text-gray-900 hover:text-blue-600 hover:underline transition" > {customer.customerName} </Link>
                           </div>
 
                           {customer.notes && (
