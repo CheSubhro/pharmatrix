@@ -1,5 +1,4 @@
 
-
 import { NextRequest, NextResponse } from "next/server";
 
 import {connectDB} from "@/lib/mongodb";
@@ -7,6 +6,7 @@ import Sale from "@/models/Sale";
 import Medicine from "@/models/Medicine";
 import MedicineBatch from "@/models/MedicineBatch";
 import StockMovement from "@/models/StockMovement";
+import Customer from "@/models/Customer";
 
 // GET - Get all sales
 export async function GET() {
@@ -15,10 +15,17 @@ export async function GET() {
 
     const sales = await Sale.find()
       .populate(
+        "customer",
+        "customerName phone email"
+      )
+      .populate(
         "items.medicine",
         "name genericName company strength dosageForm"
       )
-      .populate("items.batch", "batchNumber expiryDate")
+      .populate(
+        "items.batch",
+        "batchNumber expiryDate"
+      )
       .sort({ saleDate: -1 })
       .lean();
 
@@ -59,6 +66,7 @@ export async function POST(request: NextRequest) {
 
     const {
       billNumber,
+      customer,
       customerName,
       customerPhone,
       items,
@@ -109,7 +117,9 @@ export async function POST(request: NextRequest) {
 
     if (
       paymentMethod &&
-      !["CASH", "UPI", "CARD", "CREDIT"].includes(paymentMethod)
+      !["CASH", "UPI", "CARD", "CREDIT"].includes(
+        paymentMethod
+      )
     ) {
       return NextResponse.json(
         {
@@ -122,7 +132,9 @@ export async function POST(request: NextRequest) {
 
     if (
       paymentStatus &&
-      !["PAID", "PENDING", "PARTIAL"].includes(paymentStatus)
+      !["PAID", "PENDING", "PARTIAL"].includes(
+        paymentStatus
+      )
     ) {
       return NextResponse.json(
         {
@@ -135,7 +147,9 @@ export async function POST(request: NextRequest) {
 
     if (
       status &&
-      !["DRAFT", "COMPLETED", "CANCELLED"].includes(status)
+      !["DRAFT", "COMPLETED", "CANCELLED"].includes(
+        status
+      )
     ) {
       return NextResponse.json(
         {
@@ -146,13 +160,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For completed sale, payment must be PAID.
+    // -----------------------------
+    // Customer validation
+    // -----------------------------
+
+    let selectedCustomer = null;
+
+    if (customer) {
+      selectedCustomer = await Customer.findOne({
+        _id: customer,
+        isActive: true,
+      }).lean();
+
+      if (!selectedCustomer) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Customer not found or inactive",
+          },
+          { status: 404 }
+        );
+      }
+    }
+
+    // -----------------------------
+    // For completed sale,
+    // payment must be PAID
+    // -----------------------------
+
     if ((status || "DRAFT") === "COMPLETED") {
       if ((paymentMethod || "CASH") !== "CASH") {
         return NextResponse.json(
           {
             success: false,
-            message: "Only CASH payment is currently supported",
+            message:
+              "Only CASH payment is currently supported",
           },
           { status: 400 }
         );
@@ -162,7 +204,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            message: "Payment must be PAID before completing sale",
+            message:
+              "Payment must be PAID before completing sale",
           },
           { status: 400 }
         );
@@ -179,7 +222,10 @@ export async function POST(request: NextRequest) {
       finalBillNumber = `BILL-${Date.now()}`;
     }
 
+    // -----------------------------
     // Check duplicate bill number
+    // -----------------------------
+
     const existingSale = await Sale.findOne({
       billNumber: finalBillNumber,
     });
@@ -216,7 +262,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            message: "Medicine is required for every item",
+            message:
+              "Medicine is required for every item",
           },
           { status: 400 }
         );
@@ -239,13 +286,17 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            message: "Valid selling price is required",
+            message:
+              "Valid selling price is required",
           },
           { status: 400 }
         );
       }
 
-      if (item.taxRate === undefined || Number(item.taxRate) < 0) {
+      if (
+        item.taxRate === undefined ||
+        Number(item.taxRate) < 0
+      ) {
         return NextResponse.json(
           {
             success: false,
@@ -255,17 +306,24 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (item.discount === undefined || Number(item.discount) < 0) {
+      if (
+        item.discount === undefined ||
+        Number(item.discount) < 0
+      ) {
         return NextResponse.json(
           {
             success: false,
-            message: "Valid item discount is required",
+            message:
+              "Valid item discount is required",
           },
           { status: 400 }
         );
       }
 
-      if (item.total === undefined || Number(item.total) < 0) {
+      if (
+        item.total === undefined ||
+        Number(item.total) < 0
+      ) {
         return NextResponse.json(
           {
             success: false,
@@ -293,7 +351,6 @@ export async function POST(request: NextRequest) {
         medicine: medicine._id,
         medicineName: medicine.name,
         genericName: medicine.genericName,
-
         quantity: Number(item.quantity),
         sellingPrice: Number(item.sellingPrice),
         taxRate: Number(item.taxRate),
@@ -370,7 +427,7 @@ export async function POST(request: NextRequest) {
             movementId: String(movement._id),
           });
 
-          // First batch information is stored in sale item.
+          // First batch information is stored in sale item
           if (!item.batch) {
             item.batch = batch._id;
             item.batchNumber = batch.batchNumber;
@@ -382,23 +439,44 @@ export async function POST(request: NextRequest) {
     }
 
     // -----------------------------
+    // Customer snapshot
+    // -----------------------------
+
+    const finalCustomerName =
+      selectedCustomer?.customerName ||
+      customerName?.trim() ||
+      undefined;
+
+    const finalCustomerPhone =
+      selectedCustomer?.phone ||
+      customerPhone?.trim() ||
+      undefined;
+
+    // -----------------------------
     // Create sale
     // -----------------------------
 
     const sale = await Sale.create({
       billNumber: finalBillNumber,
 
-      customerName: customerName?.trim() || undefined,
-      customerPhone: customerPhone?.trim() || undefined,
+      customer: selectedCustomer?._id || undefined,
+
+      customerName: finalCustomerName,
+
+      customerPhone: finalCustomerPhone,
 
       items: preparedItems,
 
       subtotal: Number(subtotal),
+
       discount: Number(discount || 0),
+
       tax: Number(tax || 0),
+
       grandTotal: Number(grandTotal),
 
       paymentMethod: paymentMethod || "CASH",
+
       paymentStatus: paymentStatus || "PAID",
 
       status: status || "DRAFT",
@@ -413,18 +491,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
+
         message:
           (status || "DRAFT") === "COMPLETED"
             ? "Sale completed and stock updated successfully"
             : "Sale created successfully",
+
         sale,
+
         stockUpdated:
           (status || "DRAFT") === "COMPLETED",
       },
       { status: 201 }
     );
   } catch (error) {
-    console.error("POST /api/sales error:", error);
+    console.error(
+      "POST /api/sales error:",
+      error
+    );
 
     // -----------------------------
     // Rollback stock if sale failed

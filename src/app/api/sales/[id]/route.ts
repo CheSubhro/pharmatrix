@@ -23,6 +23,10 @@ export async function GET(
 
     const sale = await Sale.findById(id)
       .populate(
+        "customer",
+        "customerName phone email address"
+      )
+      .populate(
         "items.medicine",
         "name genericName company strength dosageForm"
       )
