@@ -20,6 +20,7 @@ import {
   Users,
   Settings,
   X,
+  UserRound,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -115,6 +116,11 @@ const menuSections = [
         label: "Users",
         href: "/users",
         icon: Users,
+      },
+      {
+        label: "Customers",
+        href: "/customers",
+        icon: UserRound,
       },
       {
         label: "Settings",
