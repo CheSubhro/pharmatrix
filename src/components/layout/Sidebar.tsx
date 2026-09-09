@@ -109,7 +109,7 @@ const menuSections = [
     items: [
       {
         label: "Doctor Visits",
-        href: "#",
+        href: "/doctors",
         icon: Stethoscope,
       },
       {
