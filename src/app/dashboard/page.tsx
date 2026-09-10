@@ -9,8 +9,6 @@ import { connectDB } from "@/lib/mongodb";
 import Medicine from "@/models/Medicine";
 import MedicineBatch from "@/models/MedicineBatch";
 
-import UserMenu from "@/components/auth/UserMenu";
-
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
 
@@ -175,27 +173,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="min-h-screen bg-gray-100">
-      {/* Header */}
-
-      <header className="border-b bg-white px-8 py-4">
-        <div className="mx-auto flex max-w-7xl items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">
-              Pharmatrix
-            </h1>
-
-            <p className="text-xs text-gray-500">
-              Medical Shop Management System
-            </p>
-          </div>
-
-          <UserMenu
-            name={session.user.name}
-            role={session.user.role}
-          />
-        </div>
-      </header>
-
+     
       {/* Dashboard */}
 
       <section className="mx-auto max-w-7xl p-8">
@@ -593,27 +571,6 @@ export default async function DashboardPage() {
               )}
             </div>
           </div>
-        </div>
-
-        {/* User Information */}
-
-        <div className="mt-6 rounded-xl border bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Welcome to Pharmatrix
-          </h3>
-
-          <p className="mt-2 text-sm text-gray-600">
-            Logged in as{" "}
-            <strong>{session.user.name}</strong>
-          </p>
-
-          <p className="mt-1 text-sm text-gray-500">
-            Email: {session.user.email}
-          </p>
-
-          <p className="mt-1 text-sm text-gray-500">
-            Role: {session.user.role}
-          </p>
         </div>
       </section>
     </main>
