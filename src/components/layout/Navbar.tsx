@@ -302,15 +302,6 @@ export default function Navbar({
 
         {/* RIGHT */}
         <div className="flex items-center gap-1 sm:gap-2">
-          {/* Search */}
-          <button
-            type="button"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label="Search"
-          >
-            <Search className="h-4 w-4" />
-          </button>
-
           {/* =================================================
               NOTIFICATIONS
           ================================================= */}
