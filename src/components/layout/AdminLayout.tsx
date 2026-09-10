@@ -1,6 +1,8 @@
 
+
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import Sidebar from "./Sidebar";
@@ -14,6 +16,12 @@ export default function AdminLayout({
   children,
 }: AdminLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Login page should not show Sidebar or Navbar
+  if (pathname === "/login") {
+    return <>{children}</>;
+  }
 
   return (
     <div className="min-h-screen bg-muted/30">
