@@ -5,15 +5,26 @@ import { NextResponse } from "next/server";
 import {connectDB} from "@/lib/mongodb";
 import Medicine from "@/models/Medicine";
 import MedicineBatch from "@/models/MedicineBatch";
+import DoctorSchedule from "@/models/DoctorSchedule";
+
+const DAY_NAMES = [
+  "SUNDAY",
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+  "SATURDAY",
+];
 
 export async function GET() {
   try {
     await connectDB();
 
     /*
-     * ---------------------------------------------------------
+     * =========================================================
      * LOW STOCK
-     * ---------------------------------------------------------
+     * =========================================================
      */
 
     const medicines = await Medicine.find({
@@ -24,14 +35,15 @@ export async function GET() {
       )
       .lean();
 
-    const activeBatches = await MedicineBatch.find({
-      isActive: true,
-      stock: { $gt: 0 },
-    })
-      .select(
-        "_id medicine stock expiryDate batchNumber"
-      )
-      .lean();
+    const activeBatches =
+      await MedicineBatch.find({
+        isActive: true,
+        stock: { $gt: 0 },
+      })
+        .select(
+          "_id medicine stock expiryDate batchNumber"
+        )
+        .lean();
 
     const stockMap = new Map<string, number>();
 
@@ -66,17 +78,22 @@ export async function GET() {
           return {
             id: `low-stock-${medicine._id}`,
             type: "LOW_STOCK" as const,
-            title: "Low Stock",
+            title:
+              currentStock <= 0
+                ? "Out of Stock"
+                : "Low Stock",
             message:
               currentStock <= 0
                 ? `${medicine.name} is out of stock.`
                 : `${medicine.name} is running low.`,
             medicineId:
               medicine._id.toString(),
-            medicineName: medicine.name,
+            medicineName:
+              medicine.name,
             genericName:
               medicine.genericName,
-            company: medicine.company,
+            company:
+              medicine.company,
             currentStock,
             minimumStock:
               Number(
@@ -91,17 +108,9 @@ export async function GET() {
         .filter(Boolean);
 
     /*
-     * ---------------------------------------------------------
+     * =========================================================
      * EXPIRY ALERT
-     * ---------------------------------------------------------
-     *
-     * Expired:
-     * daysLeft < 0
-     *
-     * Near Expiry:
-     * 0 - 30 days
-     *
-     * ---------------------------------------------------------
+     * =========================================================
      */
 
     const expiryBatches =
@@ -177,7 +186,9 @@ export async function GET() {
               batch._id.toString(),
             batchNumber:
               batch.batchNumber,
-            stock: Number(batch.stock || 0),
+            stock: Number(
+              batch.stock || 0
+            ),
             expiryDate:
               expiryDate.toISOString(),
             daysLeft,
@@ -189,27 +200,104 @@ export async function GET() {
         .filter(Boolean);
 
     /*
-     * ---------------------------------------------------------
-     * COMBINE
-     * ---------------------------------------------------------
+     * =========================================================
+     * DOCTOR VISIT REMINDER
+     * =========================================================
+     *
+     * Shows active doctor schedules for TODAY.
+     */
+
+    const todayName =
+      DAY_NAMES[now.getDay()];
+
+    const doctorSchedules =
+      await DoctorSchedule.find({
+        isActive: true,
+        dayOfWeek: todayName,
+      })
+        .populate(
+          "doctor",
+          "doctorName specialization phone chamber"
+        )
+        .sort({
+          startTime: 1,
+        })
+        .lean();
+
+    const doctorVisitNotifications =
+      doctorSchedules
+        .map((schedule) => {
+          const doctor =
+            schedule.doctor as
+              | {
+                  _id?: unknown;
+                  doctorName?: string;
+                  specialization?: string;
+                  phone?: string;
+                  chamber?: string;
+                }
+              | null;
+
+          if (!doctor?.doctorName) {
+            return null;
+          }
+
+          const chamber =
+            schedule.chamber ||
+            doctor.chamber;
+
+          return {
+            id: `doctor-visit-${schedule._id}`,
+            type:
+              "DOCTOR_VISIT" as const,
+            title:
+              "Doctor Visit Today",
+            message: `Dr. ${doctor.doctorName} is visiting today.`,
+            doctorId:
+              doctor._id?.toString(),
+            doctorName:
+              doctor.doctorName,
+            specialization:
+              doctor.specialization,
+            startTime:
+              schedule.startTime,
+            endTime:
+              schedule.endTime,
+            chamber,
+            dayOfWeek:
+              schedule.dayOfWeek,
+            severity: "LOW" as const,
+          };
+        })
+        .filter(Boolean);
+
+    /*
+     * =========================================================
+     * COMBINE NOTIFICATIONS
+     * =========================================================
      */
 
     const notifications = [
       ...expiryNotifications,
       ...lowStockNotifications,
+      ...doctorVisitNotifications,
     ];
 
     /*
-     * Highest priority first
+     * Priority:
+     *
+     * HIGH   -> Expired / Out of Stock
+     * MEDIUM -> Low Stock / Expiry
+     * LOW    -> Doctor Visit
      */
 
-    notifications.sort((a, b) => {
-      const severityOrder = {
-        HIGH: 1,
-        MEDIUM: 2,
-        LOW: 3,
-      };
+    const severityOrder = {
+      HIGH: 1,
+      MEDIUM: 2,
+      LOW: 3,
+    };
 
+    notifications.sort((a, b) => {
       return (
         severityOrder[
           a!.severity as keyof typeof severityOrder
@@ -223,13 +311,20 @@ export async function GET() {
     return NextResponse.json(
       {
         success: true,
+
         notifications,
+
         summary: {
           total: notifications.length,
+
           lowStock:
             lowStockNotifications.length,
+
           expiry:
             expiryNotifications.length,
+
+          doctorVisits:
+            doctorVisitNotifications.length,
         },
       },
       { status: 200 }

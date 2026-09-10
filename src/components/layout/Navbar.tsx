@@ -1,13 +1,14 @@
 
-
 "use client";
 
 import {
   AlertTriangle,
   Bell,
+  CalendarDays,
   Menu,
   PackageX,
   Search,
+  Stethoscope,
 } from "lucide-react";
 
 import {
@@ -27,7 +28,8 @@ interface Notification {
 
   type:
     | "LOW_STOCK"
-    | "EXPIRY_ALERT";
+    | "EXPIRY_ALERT"
+    | "DOCTOR_VISIT";
 
   title: string;
   message: string;
@@ -47,6 +49,15 @@ interface Notification {
   expiryDate?: string;
   daysLeft?: number;
 
+  doctorId?: string;
+  doctorName?: string;
+  specialization?: string;
+
+  startTime?: string;
+  endTime?: string;
+  chamber?: string;
+  dayOfWeek?: string;
+
   severity:
     | "HIGH"
     | "MEDIUM"
@@ -63,6 +74,7 @@ interface NotificationsResponse {
     total: number;
     lowStock: number;
     expiry: number;
+    doctorVisits: number;
   };
 }
 
@@ -82,9 +94,9 @@ export default function Navbar({
     useRef<HTMLDivElement>(null);
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * FETCH NOTIFICATIONS
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
   const fetchNotifications = async () => {
@@ -130,9 +142,9 @@ export default function Navbar({
   }, []);
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * OUTSIDE CLICK
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
   useEffect(() => {
@@ -163,9 +175,9 @@ export default function Navbar({
   }, []);
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * BELL CLICK
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
   const handleNotificationClick = () => {
@@ -180,9 +192,9 @@ export default function Navbar({
   };
 
   /*
-   * ---------------------------------------------------------
-   * EXPIRY LABEL
-   * ---------------------------------------------------------
+   * =========================================================
+   * EXPIRY TEXT
+   * =========================================================
    */
 
   const getExpiryText = (
@@ -213,9 +225,50 @@ export default function Navbar({
   };
 
   /*
-   * ---------------------------------------------------------
-   * COUNTS
-   * ---------------------------------------------------------
+   * =========================================================
+   * TIME FORMAT
+   * =========================================================
+   */
+
+  const formatTime = (
+    time?: string
+  ) => {
+    if (!time) {
+      return "";
+    }
+
+    const [hours, minutes] =
+      time.split(":").map(Number);
+
+    if (
+      Number.isNaN(hours) ||
+      Number.isNaN(minutes)
+    ) {
+      return time;
+    }
+
+    const date = new Date();
+
+    date.setHours(
+      hours,
+      minutes,
+      0,
+      0
+    );
+
+    return date.toLocaleTimeString(
+      "en-IN",
+      {
+        hour: "numeric",
+        minute: "2-digit",
+      }
+    );
+  };
+
+  /*
+   * =========================================================
+   * COUNT
+   * =========================================================
    */
 
   const notificationCount =
@@ -224,7 +277,7 @@ export default function Navbar({
   return (
     <header className="fixed left-0 right-0 top-0 z-30 h-16 border-b bg-white md:left-64">
       <div className="flex h-full items-center justify-between px-4 md:px-6">
-        {/* Left */}
+        {/* LEFT */}
         <div className="flex items-center gap-3">
           {/* Mobile Menu */}
           <button
@@ -247,7 +300,7 @@ export default function Navbar({
           </div>
         </div>
 
-        {/* Right */}
+        {/* RIGHT */}
         <div className="flex items-center gap-1 sm:gap-2">
           {/* Search */}
           <button
@@ -258,7 +311,10 @@ export default function Navbar({
             <Search className="h-4 w-4" />
           </button>
 
-          {/* Notifications */}
+          {/* =================================================
+              NOTIFICATIONS
+          ================================================= */}
+
           <div
             ref={notificationRef}
             className="relative"
@@ -276,7 +332,6 @@ export default function Navbar({
             >
               <Bell className="h-4 w-4" />
 
-              {/* Notification Badge */}
               {notificationCount > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-black px-1 text-[9px] font-bold text-white">
                   {notificationCount > 9
@@ -286,7 +341,10 @@ export default function Navbar({
               )}
             </button>
 
-            {/* Dropdown */}
+            {/* =================================================
+                DROPDOWN
+            ================================================= */}
+
             {notificationsOpen && (
               <div className="absolute right-0 top-11 w-96 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
                 {/* Header */}
@@ -333,8 +391,8 @@ export default function Navbar({
                       </p>
 
                       <p className="mt-1 text-xs text-gray-500">
-                        Your medicine stock and
-                        expiry status look good.
+                        Your pharmacy has no
+                        important alerts.
                       </p>
                     </div>
                   ) : (
@@ -345,11 +403,23 @@ export default function Navbar({
                             notification.type ===
                             "LOW_STOCK";
 
-                          const isExpired =
+                          const isExpiry =
                             notification.type ===
-                              "EXPIRY_ALERT" &&
+                            "EXPIRY_ALERT";
+
+                          const isDoctorVisit =
+                            notification.type ===
+                            "DOCTOR_VISIT";
+
+                          const isExpired =
+                            isExpiry &&
                             (notification.daysLeft ??
                               0) < 0;
+
+                          const isOutOfStock =
+                            isLowStock &&
+                            (notification.currentStock ??
+                              0) <= 0;
 
                           return (
                             <div
@@ -359,26 +429,27 @@ export default function Navbar({
                               className="border-b border-gray-100 px-4 py-3 last:border-0 hover:bg-gray-50"
                             >
                               <div className="flex gap-3">
-                                {/* Icon */}
+                                {/* ICON */}
                                 <div
                                   className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
                                     isExpired ||
-                                    (isLowStock &&
-                                      (notification.currentStock ??
-                                        0) <=
-                                        0)
+                                    isOutOfStock
                                       ? "bg-red-100 text-red-700"
+                                      : isDoctorVisit
+                                      ? "bg-blue-100 text-blue-700"
                                       : "bg-yellow-100 text-yellow-700"
                                   }`}
                                 >
                                   {isLowStock ? (
                                     <PackageX className="h-4 w-4" />
+                                  ) : isDoctorVisit ? (
+                                    <Stethoscope className="h-4 w-4" />
                                   ) : (
                                     <AlertTriangle className="h-4 w-4" />
                                   )}
                                 </div>
 
-                                {/* Content */}
+                                {/* CONTENT */}
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-start justify-between gap-2">
                                     <p className="text-sm font-semibold text-gray-900">
@@ -390,29 +461,36 @@ export default function Navbar({
                                     <span
                                       className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold ${
                                         isExpired ||
-                                        (isLowStock &&
-                                          (notification.currentStock ??
-                                            0) <=
-                                            0)
+                                        isOutOfStock
                                           ? "bg-red-100 text-red-700"
+                                          : isDoctorVisit
+                                          ? "bg-blue-100 text-blue-700"
                                           : "bg-yellow-100 text-yellow-800"
                                       }`}
                                     >
-                                      {isLowStock
+                                      {isOutOfStock
+                                        ? "OUT"
+                                        : isLowStock
                                         ? "LOW"
                                         : isExpired
                                         ? "EXPIRED"
+                                        : isDoctorVisit
+                                        ? "VISIT"
                                         : "EXPIRY"}
                                     </span>
                                   </div>
 
+                                  {/* MESSAGE */}
                                   <p className="mt-1 text-xs text-gray-600">
                                     {
                                       notification.message
                                     }
                                   </p>
 
-                                  {/* Low Stock */}
+                                  {/* =================================================
+                                      LOW STOCK
+                                  ================================================= */}
+
                                   {isLowStock && (
                                     <div className="mt-2 flex items-center gap-3 text-[11px]">
                                       <span className="text-gray-500">
@@ -443,8 +521,11 @@ export default function Navbar({
                                     </div>
                                   )}
 
-                                  {/* Expiry */}
-                                  {!isLowStock && (
+                                  {/* =================================================
+                                      EXPIRY
+                                  ================================================= */}
+
+                                  {isExpiry && (
                                     <div className="mt-2 space-y-1">
                                       {notification.batchNumber && (
                                         <p className="text-[11px] text-gray-500">
@@ -481,6 +562,58 @@ export default function Navbar({
                                       </div>
                                     </div>
                                   )}
+
+                                  {/* =================================================
+                                      DOCTOR VISIT
+                                  ================================================= */}
+
+                                  {isDoctorVisit && (
+                                    <div className="mt-2 space-y-1">
+                                      <div className="flex items-center gap-2 text-[11px] text-gray-600">
+                                        <CalendarDays className="h-3.5 w-3.5" />
+
+                                        <span className="font-medium text-gray-800">
+                                          Today
+                                        </span>
+                                      </div>
+
+                                      <div className="text-[11px] text-gray-500">
+                                        Time:
+                                        <span className="ml-1 font-semibold text-gray-800">
+                                          {formatTime(
+                                            notification.startTime
+                                          )}{" "}
+                                          -
+                                          {" "}
+                                          {formatTime(
+                                            notification.endTime
+                                          )}
+                                        </span>
+                                      </div>
+
+                                      {notification.specialization && (
+                                        <div className="text-[11px] text-gray-500">
+                                          Specialization:
+                                          <span className="ml-1 font-medium text-gray-700">
+                                            {
+                                              notification.specialization
+                                            }
+                                          </span>
+                                        </div>
+                                      )}
+
+                                      {notification.chamber && (
+                                        <div className="text-[11px] text-gray-500">
+                                          Chamber:
+                                          <span className="ml-1 font-medium text-gray-700">
+                                            {
+                                              notification.chamber
+                                            }
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -491,7 +624,7 @@ export default function Navbar({
                   )}
                 </div>
 
-                {/* Footer */}
+                {/* FOOTER */}
                 <div className="border-t border-gray-200 bg-gray-50 px-4 py-3">
                   <button
                     type="button"
