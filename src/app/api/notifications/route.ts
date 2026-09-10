@@ -2,7 +2,7 @@
 
 import { NextResponse } from "next/server";
 
-import connectDB from "@/lib/mongodb";
+import {connectDB} from "@/lib/mongodb";
 import Medicine from "@/models/Medicine";
 import MedicineBatch from "@/models/MedicineBatch";
 
