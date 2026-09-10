@@ -21,6 +21,12 @@ import {
   Settings,
   X,
   UserRound,
+  BarChart3,
+  FileText,
+  TrendingUp,
+  ClipboardList,
+  PackageSearch,
+  Trophy,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -39,6 +45,7 @@ const menuSections = [
       },
     ],
   },
+
   {
     title: "INVENTORY",
     items: [
@@ -79,6 +86,7 @@ const menuSections = [
       },
     ],
   },
+
   {
     title: "PURCHASE",
     items: [
@@ -94,6 +102,7 @@ const menuSections = [
       },
     ],
   },
+
   {
     title: "SALES",
     items: [
@@ -104,6 +113,48 @@ const menuSections = [
       },
     ],
   },
+
+  {
+    title: "REPORTS",
+    items: [
+      {
+        label: "Sales Report",
+        href: "/reports/sales",
+        icon: FileText,
+      },
+      {
+        label: "Purchase Report",
+        href: "/reports/purchases",
+        icon: ClipboardList,
+      },
+      {
+        label: "Stock Report",
+        href: "/reports/stock",
+        icon: PackageSearch,
+      },
+      {
+        label: "Expiry Report",
+        href: "/reports/expiry",
+        icon: AlertTriangle,
+      },
+      {
+        label: "Profit Report",
+        href: "/reports/profit",
+        icon: TrendingUp,
+      },
+      {
+        label: "Best-selling Medicines",
+        href: "/reports/best-selling",
+        icon: Trophy,
+      },
+      {
+        label: "Analytics",
+        href: "/reports/analytics",
+        icon: BarChart3,
+      },
+    ],
+  },
+
   {
     title: "MANAGEMENT",
     items: [
