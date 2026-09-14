@@ -1,8 +1,11 @@
 
+
 "use client";
 
 import { FormEvent, useState } from "react";
+
 import Link from "next/link";
+
 import { useRouter } from "next/navigation";
 
 export default function CreateCategoryPage() {
@@ -14,7 +17,9 @@ export default function CreateCategoryPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (
+    e: FormEvent<HTMLFormElement>
+  ) => {
     e.preventDefault();
 
     setError("");
@@ -41,7 +46,9 @@ export default function CreateCategoryPage() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to create category");
+        throw new Error(
+          data.message || "Failed to create category"
+        );
       }
 
       router.push("/categories");
@@ -61,6 +68,16 @@ export default function CreateCategoryPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="mx-auto max-w-5xl">
+        {/* Back to Categories */}
+        <div className="mb-4">
+          <Link
+            href="/categories"
+            className="text-sm font-medium text-gray-600 hover:text-black"
+          >
+            ← Back to Categories
+          </Link>
+        </div>
+
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">
             Add Category
@@ -78,7 +95,10 @@ export default function CreateCategoryPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-6"
+          >
             <div>
               <label
                 htmlFor="name"
@@ -91,7 +111,9 @@ export default function CreateCategoryPage() {
                 id="name"
                 type="text"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) =>
+                  setName(e.target.value)
+                }
                 placeholder="e.g. Antibiotic"
                 className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
@@ -108,7 +130,9 @@ export default function CreateCategoryPage() {
               <textarea
                 id="description"
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(e) =>
+                  setDescription(e.target.value)
+                }
                 placeholder="Enter category description..."
                 rows={4}
                 className="w-full resize-none rounded-lg border border-gray-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
@@ -128,7 +152,9 @@ export default function CreateCategoryPage() {
                 disabled={loading}
                 className="inline-flex items-center justify-center rounded-lg bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
               >
-                {loading ? "Saving..." : "Save Category"}
+                {loading
+                  ? "Saving..."
+                  : "Save Category"}
               </button>
             </div>
           </form>
