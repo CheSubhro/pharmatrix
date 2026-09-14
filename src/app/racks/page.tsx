@@ -110,185 +110,185 @@ export default function RacksPage() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-5xl px-6 py-8">
-        {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900">
-              Rack / Shelf Management
-            </h1>
+      <div className="min-h-screen bg-gray-50">
+          <div className="mx-auto max-w-5xl px-6 py-8">
+              {/* Header */}
+              <div className="mb-6 flex items-center justify-between">
+                  <div>
+                      <h1 className="text-2xl font-semibold text-gray-900">
+                          Rack / Shelf Management
+                      </h1>
 
-            <p className="mt-1 text-sm text-gray-500">
-              Manage medicine storage racks and shelves.
-            </p>
-          </div>
+                      <p className="mt-1 text-sm text-gray-500">
+                          Manage medicine storage racks and shelves.
+                      </p>
+                  </div>
 
-          <Link
-            href="/racks/create"
-            className="rounded-lg bg-black px-4 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800"
-          >
-            Add Rack
-          </Link>
-        </div>
+                  <Link
+                      href="/racks/create"
+                      className="rounded-lg bg-black px-4 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800"
+                  >
+                      +Add Rack
+                  </Link>
+              </div>
 
-        {/* Search */}
-        <div className="mb-6">
-          <input
-            type="text"
-            placeholder="Search by rack name, code or shelf..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-black focus:ring-2 focus:ring-gray-200"
-          />
-        </div>
+              {/* Search */}
+              <div className="mb-6">
+                  <input
+                      type="text"
+                      placeholder="Search by rack name, code or shelf..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-black focus:ring-2 focus:ring-gray-200"
+                  />
+              </div>
 
-        {/* Content */}
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-          {loading ? (
-            <div className="px-6 py-12 text-center text-sm text-gray-500">
-              Loading racks...
-            </div>
-          ) : error ? (
-            <div className="px-6 py-12 text-center">
-              <p className="text-sm text-red-600">{error}</p>
-
-              <button
-                type="button"
-                onClick={fetchRacks}
-                className="mt-4 rounded-md bg-black px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800"
-              >
-                Try Again
-              </button>
-            </div>
-          ) : filteredRacks.length === 0 ? (
-            <div className="px-6 py-12 text-center">
-              <p className="text-sm text-gray-500">
-                {search
-                  ? "No racks found."
-                  : "No racks available."}
-              </p>
-
-              {!search && (
-                <Link
-                  href="/racks/create"
-                  className="mt-4 inline-block rounded-md bg-black px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800"
-                >
-                  Add Your First Rack
-                </Link>
-              )}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="border-b border-gray-200 bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Rack
-                    </th>
-
-                    <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Code
-                    </th>
-
-                    <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Shelves
-                    </th>
-
-                    <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Description
-                    </th>
-
-                    <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody className="divide-y divide-gray-100">
-                  {filteredRacks.map((rack) => (
-                    <tr
-                      key={rack._id}
-                      className="transition hover:bg-gray-50"
-                    >
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-gray-900">
-                          {rack.name}
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <span className="rounded-md bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
-                          {rack.code}
-                        </span>
-                      </td>
-
-                      <td className="px-6 py-4">
-                        {rack.shelves.length > 0 ? (
-                          <div className="flex flex-wrap gap-1.5">
-                            {rack.shelves.map(
-                              (shelf, index) => (
-                                <span
-                                  key={`${rack._id}-${index}`}
-                                  className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600"
-                                >
-                                  {shelf}
-                                </span>
-                              )
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-sm text-gray-400">
-                            No shelves
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="max-w-xs px-6 py-4">
-                        <p className="truncate text-sm text-gray-600">
-                          {rack.description || "—"}
-                        </p>
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <Link
-                            href={`/racks/${rack._id}/edit`}
-                            className="rounded-md bg-black px-3 py-1.5 text-xs font-medium text-white transition hover:bg-gray-800"
-                          >
-                            Edit
-                          </Link>
+              {/* Content */}
+              <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+                  {loading ? (
+                      <div className="px-6 py-12 text-center text-sm text-gray-500">
+                          Loading racks...
+                      </div>
+                  ) : error ? (
+                      <div className="px-6 py-12 text-center">
+                          <p className="text-sm text-red-600">{error}</p>
 
                           <button
-                            type="button"
-                            onClick={() =>
-                              handleDelete(
-                                rack._id,
-                                rack.name
-                              )
-                            }
-                            className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-red-700"
+                              type="button"
+                              onClick={fetchRacks}
+                              className="mt-4 rounded-md bg-black px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800"
                           >
-                            Delete
+                              Try Again
                           </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                      </div>
+                  ) : filteredRacks.length === 0 ? (
+                      <div className="px-6 py-12 text-center">
+                          <p className="text-sm text-gray-500">
+                              {search
+                                  ? "No racks found."
+                                  : "No racks available."}
+                          </p>
 
-        {/* Summary */}
-        {!loading && !error && racks.length > 0 && (
-          <div className="mt-4 text-sm text-gray-500">
-            Showing {filteredRacks.length} of {racks.length} racks
+                          {!search && (
+                              <Link
+                                  href="/racks/create"
+                                  className="mt-4 inline-block rounded-md bg-black px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800"
+                              >
+                                  Add Your First Rack
+                              </Link>
+                          )}
+                      </div>
+                  ) : (
+                      <div className="overflow-x-auto">
+                          <table className="w-full text-left">
+                              <thead className="border-b border-gray-200 bg-gray-50">
+                                  <tr>
+                                      <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                          Rack
+                                      </th>
+
+                                      <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                          Code
+                                      </th>
+
+                                      <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                          Shelves
+                                      </th>
+
+                                      <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                          Description
+                                      </th>
+
+                                      <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                          Actions
+                                      </th>
+                                  </tr>
+                              </thead>
+
+                              <tbody className="divide-y divide-gray-100">
+                                  {filteredRacks.map((rack) => (
+                                      <tr
+                                          key={rack._id}
+                                          className="transition hover:bg-gray-50"
+                                      >
+                                          <td className="px-6 py-4">
+                                              <div className="font-medium text-gray-900">
+                                                  {rack.name}
+                                              </div>
+                                          </td>
+
+                                          <td className="px-6 py-4">
+                                              <span className="rounded-md bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+                                                  {rack.code}
+                                              </span>
+                                          </td>
+
+                                          <td className="px-6 py-4">
+                                              {rack.shelves.length > 0 ? (
+                                                  <div className="flex flex-wrap gap-1.5">
+                                                      {rack.shelves.map(
+                                                          (shelf, index) => (
+                                                              <span
+                                                                  key={`${rack._id}-${index}`}
+                                                                  className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600"
+                                                              >
+                                                                  {shelf}
+                                                              </span>
+                                                          )
+                                                      )}
+                                                  </div>
+                                              ) : (
+                                                  <span className="text-sm text-gray-400">
+                                                      No shelves
+                                                  </span>
+                                              )}
+                                          </td>
+
+                                          <td className="max-w-xs px-6 py-4">
+                                              <p className="truncate text-sm text-gray-600">
+                                                  {rack.description || "—"}
+                                              </p>
+                                          </td>
+
+                                          <td className="px-6 py-4">
+                                              <div className="flex items-center justify-end gap-2">
+                                                  <Link
+                                                      href={`/racks/${rack._id}/edit`}
+                                                      className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+                                                  >
+                                                      Edit
+                                                  </Link>
+
+                                                  <button
+                                                      type="button"
+                                                      onClick={() =>
+                                                          handleDelete(
+                                                              rack._id,
+                                                              rack.name
+                                                          )
+                                                      }
+                                                      className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-red-700"
+                                                  >
+                                                      Delete
+                                                  </button>
+                                              </div>
+                                          </td>
+                                      </tr>
+                                  ))}
+                              </tbody>
+                          </table>
+                      </div>
+                  )}
+              </div>
+
+              {/* Summary */}
+              {!loading && !error && racks.length > 0 && (
+                  <div className="mt-4 text-sm text-gray-500">
+                      Showing {filteredRacks.length} of {racks.length} racks
+                  </div>
+              )}
           </div>
-        )}
       </div>
-    </div>
   );
 }
 
