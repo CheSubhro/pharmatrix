@@ -1,7 +1,9 @@
 
+
 import { NextRequest, NextResponse } from "next/server";
 
-import {connectDB} from "@/lib/mongodb";
+import { connectDB } from "@/lib/mongodb";
+
 import MedicineBatch from "@/models/MedicineBatch";
 
 export async function GET(request: NextRequest) {
@@ -22,19 +24,16 @@ export async function GET(request: NextRequest) {
         "medicine",
         "name genericName category rack shelf purchasePrice sellingPrice"
       )
-      .populate(
-        "supplier",
-        "supplierName phone"
-      )
-      .sort({ expiryDate: 1, createdAt: 1 })
+      .sort({
+        expiryDate: 1,
+        createdAt: 1,
+      })
       .lean();
 
     const expiryReport = batches
       .filter((batch) => batch.medicine)
       .map((batch) => {
-        const expiryDate = new Date(
-          batch.expiryDate
-        );
+        const expiryDate = new Date(batch.expiryDate);
 
         const diffMs =
           expiryDate.getTime() - now.getTime();
@@ -71,6 +70,7 @@ export async function GET(request: NextRequest) {
 
         return {
           _id: batch._id,
+
           batchNumber:
             batch.batchNumber || "-",
 
@@ -91,10 +91,6 @@ export async function GET(request: NextRequest) {
 
           shelf:
             batch.medicine.shelf || "-",
-
-          supplier:
-            batch.supplier?.supplierName ||
-            "-",
 
           quantity,
 
@@ -206,22 +202,30 @@ export async function GET(request: NextRequest) {
         success: true,
 
         summary: {
-          totalBatches: expiryReport.length,
+          totalBatches:
+            expiryReport.length,
 
           expiredCount,
+
           nearExpiryCount,
+
           goodCount,
 
           expiredStock,
+
           nearExpiryStock,
 
           expiredStockValue,
+
           nearExpiryStockValue,
         },
 
-        expiryReport: filteredReport,
+        expiryReport:
+          filteredReport,
       },
-      { status: 200 }
+      {
+        status: 200,
+      }
     );
   } catch (error) {
     console.error(
@@ -235,7 +239,10 @@ export async function GET(request: NextRequest) {
         message:
           "Failed to generate expiry report",
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }
+

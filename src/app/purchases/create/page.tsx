@@ -3,6 +3,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -35,6 +36,7 @@ interface PurchaseItem {
 }
 
 export default function CreatePurchasePage() {
+
   const router = useRouter();
 
   const [medicines, setMedicines] = useState<Medicine[]>([]);
@@ -393,530 +395,476 @@ export default function CreatePurchasePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="mx-auto max-w-7xl">
-
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">
-            Create Purchase
-          </h1>
-
-          <p className="mt-1 text-sm text-gray-500">
-            Create a purchase order for medicines.
-          </p>
-        </div>
-
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-6"
-        >
-
-          {/* Purchase Information */}
-
-          <div className="rounded-xl border bg-white p-6 shadow-sm">
-
-            <h2 className="mb-5 text-lg font-semibold text-gray-900">
-              Purchase Information
-            </h2>
-
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-
-              {/* Purchase Number */}
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Purchase Number *
-                </label>
-
-                <input
-                  type="text"
-                  value={purchaseNumber}
-                  onChange={(e) =>
-                    setPurchaseNumber(
-                      e.target.value
-                    )
-                  }
-                  className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-black"
-                  placeholder="PO-001"
-                />
+      <div className="min-h-screen bg-gray-50 p-6">
+          <div className="mx-auto max-w-7xl">
+              {/* Back to Purchase */}
+              <div className="mb-4">
+                  <Link
+                      href="/purchases"
+                      className="text-sm font-medium text-gray-600 hover:text-black"
+                  >
+                      ← Back to Purchase
+                  </Link>
               </div>
 
-              {/* Supplier */}
+              <div className="mb-6">
+                  <h1 className="text-2xl font-bold text-gray-900">
+                      Create Purchase
+                  </h1>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Supplier *
-                </label>
-
-                <select
-                  value={supplier}
-                  disabled={loadingSuppliers}
-                  onChange={(e) =>
-                    handleSupplierChange(
-                      e.target.value
-                    )
-                  }
-                  className="w-full rounded-lg border bg-white px-3 py-2.5 text-sm outline-none focus:border-black"
-                >
-                  <option value="">
-                    {loadingSuppliers
-                      ? "Loading suppliers..."
-                      : "Select supplier"}
-                  </option>
-
-                  {suppliers.map((item) => (
-                    <option
-                      key={item._id}
-                      value={item._id}
-                    >
-                      {item.supplierName}
-                      {item.companyName
-                        ? ` - ${item.companyName}`
-                        : ""}
-                    </option>
-                  ))}
-                </select>
+                  <p className="mt-1 text-sm text-gray-500">
+                      Create a purchase order for medicines.
+                  </p>
               </div>
 
-              {/* Supplier Phone */}
+              <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Purchase Information */}
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Supplier Phone
-                </label>
+                  <div className="rounded-xl border bg-white p-6 shadow-sm">
+                      <h2 className="mb-5 text-lg font-semibold text-gray-900">
+                          Purchase Information
+                      </h2>
 
-                <input
-                  type="text"
-                  value={supplierPhone}
-                  readOnly
-                  className="w-full rounded-lg border bg-gray-50 px-3 py-2.5 text-sm outline-none"
-                  placeholder="Supplier phone"
-                />
-              </div>
+                      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+                          {/* Purchase Number */}
 
-              {/* Invoice Number */}
+                          <div>
+                              <label className="mb-2 block text-sm font-medium text-gray-700">
+                                  Purchase Number *
+                              </label>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Invoice Number
-                </label>
+                              <input
+                                  type="text"
+                                  value={purchaseNumber}
+                                  onChange={(e) =>
+                                      setPurchaseNumber(e.target.value)
+                                  }
+                                  className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-black"
+                                  placeholder="PO-001"
+                              />
+                          </div>
 
-                <input
-                  type="text"
-                  value={invoiceNumber}
-                  onChange={(e) =>
-                    setInvoiceNumber(
-                      e.target.value
-                    )
-                  }
-                  className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-black"
-                  placeholder="INV-001"
-                />
-              </div>
+                          {/* Supplier */}
 
-              {/* Purchase Date */}
+                          <div>
+                              <label className="mb-2 block text-sm font-medium text-gray-700">
+                                  Supplier *
+                              </label>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Purchase Date *
-                </label>
+                              <select
+                                  value={supplier}
+                                  disabled={loadingSuppliers}
+                                  onChange={(e) =>
+                                      handleSupplierChange(e.target.value)
+                                  }
+                                  className="w-full rounded-lg border bg-white px-3 py-2.5 text-sm outline-none focus:border-black"
+                              >
+                                  <option value="">
+                                      {loadingSuppliers
+                                          ? "Loading suppliers..."
+                                          : "Select supplier"}
+                                  </option>
 
-                <input
-                  type="date"
-                  value={purchaseDate}
-                  onChange={(e) =>
-                    setPurchaseDate(
-                      e.target.value
-                    )
-                  }
-                  className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-black"
-                />
-              </div>
+                                  {suppliers.map((item) => (
+                                      <option key={item._id} value={item._id}>
+                                          {item.supplierName}
+                                          {item.companyName
+                                              ? ` - ${item.companyName}`
+                                              : ""}
+                                      </option>
+                                  ))}
+                              </select>
+                          </div>
 
-              {/* Status */}
+                          {/* Supplier Phone */}
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Status
-                </label>
+                          <div>
+                              <label className="mb-2 block text-sm font-medium text-gray-700">
+                                  Supplier Phone
+                              </label>
 
-                <select
-                  value={status}
-                  onChange={(e) =>
-                    setStatus(
-                      e.target.value as
-                        | "DRAFT"
-                        | "ORDERED"
-                    )
-                  }
-                  className="w-full rounded-lg border bg-white px-3 py-2.5 text-sm outline-none focus:border-black"
-                >
-                  <option value="DRAFT">
-                    Draft
-                  </option>
+                              <input
+                                  type="text"
+                                  value={supplierPhone}
+                                  readOnly
+                                  className="w-full rounded-lg border bg-gray-50 px-3 py-2.5 text-sm outline-none"
+                                  placeholder="Supplier phone"
+                              />
+                          </div>
 
-                  <option value="ORDERED">
-                    Ordered
-                  </option>
-                </select>
-              </div>
-            </div>
-          </div>
+                          {/* Invoice Number */}
 
-          {/* Medicine Items */}
+                          <div>
+                              <label className="mb-2 block text-sm font-medium text-gray-700">
+                                  Invoice Number
+                              </label>
 
-          <div className="rounded-xl border bg-white p-6 shadow-sm">
+                              <input
+                                  type="text"
+                                  value={invoiceNumber}
+                                  onChange={(e) =>
+                                      setInvoiceNumber(e.target.value)
+                                  }
+                                  className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-black"
+                                  placeholder="INV-001"
+                              />
+                          </div>
 
-            <div className="mb-5 flex items-center justify-between">
+                          {/* Purchase Date */}
 
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Purchase Items
-                </h2>
+                          <div>
+                              <label className="mb-2 block text-sm font-medium text-gray-700">
+                                  Purchase Date *
+                              </label>
 
-                <p className="mt-1 text-sm text-gray-500">
-                  Add medicines and batch details.
-                </p>
-              </div>
+                              <input
+                                  type="date"
+                                  value={purchaseDate}
+                                  onChange={(e) =>
+                                      setPurchaseDate(e.target.value)
+                                  }
+                                  className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-black"
+                              />
+                          </div>
 
-              <button
-                type="button"
-                onClick={addItem}
-                className="rounded-lg bg-black px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-800"
-              >
-                + Add Medicine
-              </button>
-            </div>
+                          {/* Status */}
 
-            <div className="space-y-5">
+                          <div>
+                              <label className="mb-2 block text-sm font-medium text-gray-700">
+                                  Status
+                              </label>
 
-              {items.map((item, index) => (
-                <div
-                  key={index}
-                  className="rounded-xl border bg-gray-50 p-5"
-                >
+                              <select
+                                  value={status}
+                                  onChange={(e) =>
+                                      setStatus(
+                                          e.target.value as "DRAFT" | "ORDERED"
+                                      )
+                                  }
+                                  className="w-full rounded-lg border bg-white px-3 py-2.5 text-sm outline-none focus:border-black"
+                              >
+                                  <option value="DRAFT">Draft</option>
 
-                  <div className="mb-4 flex items-center justify-between">
+                                  <option value="ORDERED">Ordered</option>
+                              </select>
+                          </div>
+                      </div>
+                  </div>
 
-                    <h3 className="font-semibold text-gray-800">
-                      Item {index + 1}
-                    </h3>
+                  {/* Medicine Items */}
 
-                    {items.length > 1 && (
+                  <div className="rounded-xl border bg-white p-6 shadow-sm">
+                      <div className="mb-5 flex items-center justify-between">
+                          <div>
+                              <h2 className="text-lg font-semibold text-gray-900">
+                                  Purchase Items
+                              </h2>
+
+                              <p className="mt-1 text-sm text-gray-500">
+                                  Add medicines and batch details.
+                              </p>
+                          </div>
+
+                          <button
+                              type="button"
+                              onClick={addItem}
+                              className="rounded-lg bg-black px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-800"
+                          >
+                              + Add Medicine
+                          </button>
+                      </div>
+
+                      <div className="space-y-5">
+                          {items.map((item, index) => (
+                              <div
+                                  key={index}
+                                  className="rounded-xl border bg-gray-50 p-5"
+                              >
+                                  <div className="mb-4 flex items-center justify-between">
+                                      <h3 className="font-semibold text-gray-800">
+                                          Item {index + 1}
+                                      </h3>
+
+                                      {items.length > 1 && (
+                                          <button
+                                              type="button"
+                                              onClick={() => removeItem(index)}
+                                              className="text-sm font-medium text-red-600 hover:text-red-700"
+                                          >
+                                              Remove
+                                          </button>
+                                      )}
+                                  </div>
+
+                                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+                                      {/* Medicine */}
+
+                                      <div>
+                                          <label className="mb-2 block text-sm font-medium text-gray-700">
+                                              Medicine *
+                                          </label>
+
+                                          <select
+                                              value={item.medicine}
+                                              disabled={loadingMedicines}
+                                              onChange={(e) =>
+                                                  handleMedicineChange(
+                                                      index,
+                                                      e.target.value
+                                                  )
+                                              }
+                                              className="w-full rounded-lg border bg-white px-3 py-2.5 text-sm outline-none focus:border-black"
+                                          >
+                                              <option value="">
+                                                  {loadingMedicines
+                                                      ? "Loading medicines..."
+                                                      : "Select medicine"}
+                                              </option>
+
+                                              {medicines.map((medicine) => (
+                                                  <option
+                                                      key={medicine._id}
+                                                      value={medicine._id}
+                                                  >
+                                                      {medicine.name}
+
+                                                      {medicine.strength
+                                                          ? ` - ${medicine.strength}`
+                                                          : ""}
+                                                  </option>
+                                              ))}
+                                          </select>
+                                      </div>
+
+                                      {/* Batch */}
+
+                                      <div>
+                                          <label className="mb-2 block text-sm font-medium text-gray-700">
+                                              Batch Number *
+                                          </label>
+
+                                          <input
+                                              type="text"
+                                              value={item.batchNumber}
+                                              onChange={(e) =>
+                                                  updateItem(
+                                                      index,
+                                                      "batchNumber",
+                                                      e.target.value
+                                                  )
+                                              }
+                                              className="w-full rounded-lg border bg-white px-3 py-2.5 text-sm outline-none focus:border-black"
+                                              placeholder="BATCH-001"
+                                          />
+                                      </div>
+
+                                      {/* Quantity */}
+
+                                      <div>
+                                          <label className="mb-2 block text-sm font-medium text-gray-700">
+                                              Quantity *
+                                          </label>
+
+                                          <input
+                                              type="number"
+                                              min="1"
+                                              step="1"
+                                              value={item.quantity}
+                                              onChange={(e) =>
+                                                  updateItem(
+                                                      index,
+                                                      "quantity",
+                                                      e.target.value
+                                                  )
+                                              }
+                                              className="w-full rounded-lg border bg-white px-3 py-2.5 text-sm outline-none focus:border-black"
+                                              placeholder="50"
+                                          />
+                                      </div>
+
+                                      {/* Purchase Price */}
+
+                                      <div>
+                                          <label className="mb-2 block text-sm font-medium text-gray-700">
+                                              Purchase Price *
+                                          </label>
+
+                                          <input
+                                              type="number"
+                                              min="0"
+                                              step="0.01"
+                                              value={item.purchasePrice}
+                                              onChange={(e) =>
+                                                  updateItem(
+                                                      index,
+                                                      "purchasePrice",
+                                                      e.target.value
+                                                  )
+                                              }
+                                              className="w-full rounded-lg border bg-white px-3 py-2.5 text-sm outline-none focus:border-black"
+                                              placeholder="10.00"
+                                          />
+                                      </div>
+
+                                      {/* Manufacturing Date */}
+
+                                      <div>
+                                          <label className="mb-2 block text-sm font-medium text-gray-700">
+                                              Manufacturing Date
+                                          </label>
+
+                                          <input
+                                              type="date"
+                                              value={item.manufacturingDate}
+                                              onChange={(e) =>
+                                                  updateItem(
+                                                      index,
+                                                      "manufacturingDate",
+                                                      e.target.value
+                                                  )
+                                              }
+                                              className="w-full rounded-lg border bg-white px-3 py-2.5 text-sm outline-none focus:border-black"
+                                          />
+                                      </div>
+
+                                      {/* Expiry Date */}
+
+                                      <div>
+                                          <label className="mb-2 block text-sm font-medium text-gray-700">
+                                              Expiry Date *
+                                          </label>
+
+                                          <input
+                                              type="date"
+                                              value={item.expiryDate}
+                                              onChange={(e) =>
+                                                  updateItem(
+                                                      index,
+                                                      "expiryDate",
+                                                      e.target.value
+                                                  )
+                                              }
+                                              className="w-full rounded-lg border bg-white px-3 py-2.5 text-sm outline-none focus:border-black"
+                                          />
+                                      </div>
+                                  </div>
+
+                                  <div className="mt-4 flex justify-end">
+                                      <div className="rounded-lg bg-white px-4 py-3 text-right shadow-sm">
+                                          <p className="text-xs text-gray-500">
+                                              Item Total
+                                          </p>
+
+                                          <p className="text-lg font-bold text-gray-900">
+                                              ₹{getItemTotal(item).toFixed(2)}
+                                          </p>
+                                      </div>
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+                  </div>
+
+                  {/* Note & Summary */}
+
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                      <div className="rounded-xl border bg-white p-6 shadow-sm">
+                          <h2 className="mb-5 text-lg font-semibold text-gray-900">
+                              Additional Information
+                          </h2>
+
+                          <div>
+                              <label className="mb-2 block text-sm font-medium text-gray-700">
+                                  Tax
+                              </label>
+
+                              <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={tax}
+                                  onChange={(e) => setTax(e.target.value)}
+                                  className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-black"
+                                  placeholder="0"
+                              />
+                          </div>
+
+                          <div className="mt-5">
+                              <label className="mb-2 block text-sm font-medium text-gray-700">
+                                  Note
+                              </label>
+
+                              <textarea
+                                  value={note}
+                                  onChange={(e) => setNote(e.target.value)}
+                                  rows={5}
+                                  className="w-full resize-none rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-black"
+                                  placeholder="Additional purchase notes..."
+                              />
+                          </div>
+                      </div>
+
+                      <div className="rounded-xl border bg-white p-6 shadow-sm">
+                          <h2 className="mb-5 text-lg font-semibold text-gray-900">
+                              Purchase Summary
+                          </h2>
+
+                          <div className="space-y-3">
+                              <div className="flex justify-between text-sm">
+                                  <span className="text-gray-600">
+                                      Subtotal
+                                  </span>
+
+                                  <span className="font-medium text-gray-900">
+                                      ₹{subtotal.toFixed(2)}
+                                  </span>
+                              </div>
+
+                              <div className="flex justify-between text-sm">
+                                  <span className="text-gray-600">Tax</span>
+
+                                  <span className="font-medium text-gray-900">
+                                      ₹{taxAmount.toFixed(2)}
+                                  </span>
+                              </div>
+
+                              <div className="border-t pt-3">
+                                  <div className="flex justify-between">
+                                      <span className="text-base font-semibold text-gray-900">
+                                          Grand Total
+                                      </span>
+
+                                      <span className="text-xl font-bold text-gray-900">
+                                          ₹{grandTotal.toFixed(2)}
+                                      </span>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+
+                  {/* Actions */}
+
+                  <div className="flex justify-end gap-3">
                       <button
-                        type="button"
-                        onClick={() =>
-                          removeItem(index)
-                        }
-                        className="text-sm font-medium text-red-600 hover:text-red-700"
+                          type="button"
+                          onClick={() => router.push("/purchases")}
+                          className="rounded-lg border px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
                       >
-                        Remove
+                          Cancel
                       </button>
-                    )}
-                  </div>
 
-                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-
-                    {/* Medicine */}
-
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-gray-700">
-                        Medicine *
-                      </label>
-
-                      <select
-                        value={item.medicine}
-                        disabled={loadingMedicines}
-                        onChange={(e) =>
-                          handleMedicineChange(
-                            index,
-                            e.target.value
-                          )
-                        }
-                        className="w-full rounded-lg border bg-white px-3 py-2.5 text-sm outline-none focus:border-black"
+                      <button
+                          type="submit"
+                          disabled={saving}
+                          className="rounded-lg bg-black px-6 py-2.5 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        <option value="">
-                          {loadingMedicines
-                            ? "Loading medicines..."
-                            : "Select medicine"}
-                        </option>
-
-                        {medicines.map(
-                          (medicine) => (
-                            <option
-                              key={medicine._id}
-                              value={
-                                medicine._id
-                              }
-                            >
-                              {medicine.name}
-
-                              {medicine.strength
-                                ? ` - ${medicine.strength}`
-                                : ""}
-                            </option>
-                          )
-                        )}
-                      </select>
-                    </div>
-
-                    {/* Batch */}
-
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-gray-700">
-                        Batch Number *
-                      </label>
-
-                      <input
-                        type="text"
-                        value={item.batchNumber}
-                        onChange={(e) =>
-                          updateItem(
-                            index,
-                            "batchNumber",
-                            e.target.value
-                          )
-                        }
-                        className="w-full rounded-lg border bg-white px-3 py-2.5 text-sm outline-none focus:border-black"
-                        placeholder="BATCH-001"
-                      />
-                    </div>
-
-                    {/* Quantity */}
-
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-gray-700">
-                        Quantity *
-                      </label>
-
-                      <input
-                        type="number"
-                        min="1"
-                        step="1"
-                        value={item.quantity}
-                        onChange={(e) =>
-                          updateItem(
-                            index,
-                            "quantity",
-                            e.target.value
-                          )
-                        }
-                        className="w-full rounded-lg border bg-white px-3 py-2.5 text-sm outline-none focus:border-black"
-                        placeholder="50"
-                      />
-                    </div>
-
-                    {/* Purchase Price */}
-
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-gray-700">
-                        Purchase Price *
-                      </label>
-
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.purchasePrice}
-                        onChange={(e) =>
-                          updateItem(
-                            index,
-                            "purchasePrice",
-                            e.target.value
-                          )
-                        }
-                        className="w-full rounded-lg border bg-white px-3 py-2.5 text-sm outline-none focus:border-black"
-                        placeholder="10.00"
-                      />
-                    </div>
-
-                    {/* Manufacturing Date */}
-
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-gray-700">
-                        Manufacturing Date
-                      </label>
-
-                      <input
-                        type="date"
-                        value={
-                          item.manufacturingDate
-                        }
-                        onChange={(e) =>
-                          updateItem(
-                            index,
-                            "manufacturingDate",
-                            e.target.value
-                          )
-                        }
-                        className="w-full rounded-lg border bg-white px-3 py-2.5 text-sm outline-none focus:border-black"
-                      />
-                    </div>
-
-                    {/* Expiry Date */}
-
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-gray-700">
-                        Expiry Date *
-                      </label>
-
-                      <input
-                        type="date"
-                        value={item.expiryDate}
-                        onChange={(e) =>
-                          updateItem(
-                            index,
-                            "expiryDate",
-                            e.target.value
-                          )
-                        }
-                        className="w-full rounded-lg border bg-white px-3 py-2.5 text-sm outline-none focus:border-black"
-                      />
-                    </div>
+                          {saving ? "Saving..." : "Create Purchase"}
+                      </button>
                   </div>
-
-                  <div className="mt-4 flex justify-end">
-
-                    <div className="rounded-lg bg-white px-4 py-3 text-right shadow-sm">
-
-                      <p className="text-xs text-gray-500">
-                        Item Total
-                      </p>
-
-                      <p className="text-lg font-bold text-gray-900">
-                        ₹
-                        {getItemTotal(
-                          item
-                        ).toFixed(2)}
-                      </p>
-
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+              </form>
           </div>
-
-          {/* Note & Summary */}
-
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-
-            <div className="rounded-xl border bg-white p-6 shadow-sm">
-
-              <h2 className="mb-5 text-lg font-semibold text-gray-900">
-                Additional Information
-              </h2>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Tax
-                </label>
-
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={tax}
-                  onChange={(e) =>
-                    setTax(e.target.value)
-                  }
-                  className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-black"
-                  placeholder="0"
-                />
-              </div>
-
-              <div className="mt-5">
-
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Note
-                </label>
-
-                <textarea
-                  value={note}
-                  onChange={(e) =>
-                    setNote(e.target.value)
-                  }
-                  rows={5}
-                  className="w-full resize-none rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-black"
-                  placeholder="Additional purchase notes..."
-                />
-              </div>
-            </div>
-
-            <div className="rounded-xl border bg-white p-6 shadow-sm">
-
-              <h2 className="mb-5 text-lg font-semibold text-gray-900">
-                Purchase Summary
-              </h2>
-
-              <div className="space-y-3">
-
-                <div className="flex justify-between text-sm">
-
-                  <span className="text-gray-600">
-                    Subtotal
-                  </span>
-
-                  <span className="font-medium text-gray-900">
-                    ₹{subtotal.toFixed(2)}
-                  </span>
-                </div>
-
-                <div className="flex justify-between text-sm">
-
-                  <span className="text-gray-600">
-                    Tax
-                  </span>
-
-                  <span className="font-medium text-gray-900">
-                    ₹{taxAmount.toFixed(2)}
-                  </span>
-                </div>
-
-                <div className="border-t pt-3">
-
-                  <div className="flex justify-between">
-
-                    <span className="text-base font-semibold text-gray-900">
-                      Grand Total
-                    </span>
-
-                    <span className="text-xl font-bold text-gray-900">
-                      ₹{grandTotal.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Actions */}
-
-          <div className="flex justify-end gap-3">
-
-            <button
-              type="button"
-              onClick={() =>
-                router.push("/purchases")
-              }
-              className="rounded-lg border px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
-            >
-              Cancel
-            </button>
-
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-lg bg-black px-6 py-2.5 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {saving
-                ? "Saving..."
-                : "Create Purchase"}
-            </button>
-          </div>
-        </form>
       </div>
-    </div>
   );
 }
 
