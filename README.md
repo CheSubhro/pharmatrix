@@ -2,7 +2,30 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 
 ![Saved Schemes](screenshot/screencapture-localhost-3000-categories-2026-09-15-11_30_17.png)
-![Saved Schemes](screenshot/4.png)
+![Saved Schemes](screenshot/screencapture-localhost-3000-customers-create-2026-09-15-11_59_00.png)
+![Saved Schemes](screenshot/screencapture-localhost-3000-dashboard-2026-09-15-11_28_24.png)
+![Saved Schemes](screenshot/screencapture-localhost-3000-dashboard-2026-09-15-12_00_53.png)
+
+![Saved Schemes](screenshot/screencapture-localhost-3000-doctors-create-2026-09-15-11_52_39.png)
+![Saved Schemes](screenshot/screencapture-localhost-3000-expiry-management-2026-09-15-11_35_15.png)
+![Saved Schemes](screenshot/screencapture-localhost-3000-login-2026-09-15-12_01_13.png)
+![Saved Schemes](screenshot/screencapture-localhost-3000-medicine-batches-6a9f92482fb9150afd6e7af9-edit-2026-09-15-11_34_27.png)
+
+![Saved Schemes](screenshot/screencapture-localhost-3000-medicines-2026-09-15-11_31_38.png)
+![Saved Schemes](screenshot/screencapture-localhost-3000-purchases-2026-09-15-11_35_49.png)
+![Saved Schemes](screenshot/screencapture-localhost-3000-racks-2026-09-15-11_32_42.png)
+![Saved Schemes](screenshot/screencapture-localhost-3000-medicine-batches-6a9f92482fb9150afd6e7af9-edit-2026-09-15-11_34_27.png)
+
+![Saved Schemes](screenshot/screencapture-localhost-3000-users-2026-09-15-11_53_12.png)
+![Saved Schemes](screenshot/screencapture-localhost-3000-stock-2026-09-15-11_34_45.png)
+![Saved Schemes](screenshot/screencapture-localhost-3000-suppliers-2026-09-15-11_36_29.png)
+![Saved Schemes](screenshot/screencapture-localhost-3000-reports-purchases-2026-09-15-11_37_38.png)
+
+![Saved Schemes](screenshot/screencapture-localhost-3000-sales-2026-09-15-11_37_09.png)
+![Saved Schemes](screenshot/screencapture-localhost-3000-reports-profit-2026-09-15-11_38_19.png)
+
+![Saved Schemes](screenshot/screencapture-localhost-3000-reports-analytics-2026-09-15-11_46_49.png)
+![Saved Schemes](screenshot/screencapture-localhost-3000-reorder-recommendations-2026-09-15-11_35_28.png)
 
 
 ## Getting Started
