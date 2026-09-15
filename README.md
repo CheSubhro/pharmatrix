@@ -1,7 +1,7 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-![Saved Schemes](screenshot/screencapture-localhost-3000-categories-2026-09-15-11_30_17.png)
-![Saved Schemes](screenshot/2.png)
+!(screenshot/screencapture-localhost-3000-categories-2026-09-15-11_30_17.png)
+!(screenshot/2.png)
 ![Saved Schemes](screenshot/3.png)
 ![Saved Schemes](screenshot/4.png)
 
